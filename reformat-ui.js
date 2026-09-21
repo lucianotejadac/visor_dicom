@@ -4,7 +4,7 @@
 // Source view → image axes. Coronal and sagittal rows run from superior down, as in drawSlices.
 const SOURCE_AXES={axial:{horizontal:0,vertical:1,flip:false},coronal:{horizontal:0,vertical:2,flip:true},sagittal:{horizontal:1,vertical:2,flip:true}};
 const PLANE_LABELS={axial:'Axial',coronal:'Coronal',sagittal:'Sagital'};
-let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null;
+let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null;
 const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo'];
 const sliceNumber=id=>Number($(id).value);
 function sliceAxis(){const frame=Reformat.PLANES[$('slicePlane').value];return frame?frame.axis:2;}
@@ -27,9 +27,17 @@ function refreshSliceContent(){
  if(!fusionSample&&select.value==='fusion')select.value='base';
  if(fusionSample&&!sliceContentChosen)select.value='fusion';
 }
+// An empty field of view means "fit the volume"; an empty resolution means the native voxel.
 function planOptions(){
  return {plane:$('slicePlane').value,distance:sliceNumber('sliceDistance'),thickness:sliceNumber('sliceThickness'),
-  combine:$('sliceCombine').value,from:sliceNumber('sliceFrom'),to:sliceNumber('sliceTo')};
+  combine:$('sliceCombine').value,from:sliceNumber('sliceFrom'),to:sliceNumber('sliceTo'),
+  fov:$('sliceFov').value===''?null:sliceNumber('sliceFov'),
+  pixel:$('slicePixel').value===''?null:Number($('slicePixel').value),
+  center:sliceCentre};
+}
+function coveringField(){
+ const frame=Reformat.PLANES[$('slicePlane').value],box=Reformat.bounds(volume);
+ return Math.max(...[frame.colAxis,frame.rowAxis].map(a=>box[a][1]-box[a][0]+volume.spacing[a]));
 }
 function updateSlicePlan(){
  slicePlan=null;$('sliceExport').disabled=true;
@@ -38,10 +46,14 @@ function updateSlicePlan(){
  if(sliceInputs.some(id=>$(id).value===''||!Number.isFinite(sliceNumber(id)))){$('slicePlan').textContent='Introduce distancia, grosor y rango numéricos.';schedule();return null;}
  try{
   slicePlan=Reformat.plan(volume,planOptions());
-  const p=slicePlan,thin=p.thickness<volume.spacing[p.axis]-1e-6;
-  $('slicePlan').textContent=`${p.count} corte(s) ${p.name}es · ${p.columns} × ${p.rows} px · ${p.pixel.toFixed(2)} mm/px · `+
-   `${p.distance} mm entre cortes, ${p.thickness} mm de grosor (${Reformat.COMBINERS[p.combine]} de ${p.samples} muestra(s))`+
+  const p=slicePlan,thin=p.thickness<volume.spacing[p.axis]-1e-6,megabytes=p.columns*p.rows*3*p.count/1048576;
+  const field=p.square?`campo ${p.field.toFixed(0)} mm centrado`:`campo completo ${p.fieldOfView[0].toFixed(0)} × ${p.fieldOfView[1].toFixed(0)} mm`;
+  $('slicePlan').textContent=`${p.count} corte(s) ${p.name}es · matriz ${p.columns} × ${p.rows} · ${p.pixel.toFixed(2)} mm/px · ${field} · `+
+   `${p.distance} mm entre cortes, ${p.thickness} mm de grosor (${Reformat.COMBINERS[p.combine]} de ${p.samples} muestra(s)) · `+
+   `${megabytes<10?megabytes.toFixed(1):Math.round(megabytes)} MB al exportar`+
    (thin?' · grosor menor que el vóxel: corte interpolado, no añade información.':'')+
+   (p.pixel<p.native-1e-6?` · píxel por debajo del vóxel de ${p.native.toFixed(2)} mm: interpola, no añade detalle.`:'')+
+   (p.square&&p.field>coveringField()+1e-6?' · el campo excede el volumen: quedará borde negro.':'')+
    (p.distance>p.thickness?' · quedan huecos entre cortes.':p.distance<p.thickness?' · cortes solapados.':'');
   $('sliceExport').disabled=false;
  }catch(e){$('slicePlan').textContent=e.message;}
@@ -53,8 +65,11 @@ function updateSlicePlan(){
  return slicePlan;
 }
 function resetSlicePlanner(){
- sliceContentChosen=false;
+ sliceContentChosen=false;sliceCentre=null;
  refreshPlaneOptions();refreshSliceContent();resetSliceRange();
+ $('sliceFov').value='';$('slicePixel').value='';
+ const native=(($('slicePixel').options?[...$('slicePixel').options]:[]).find(o=>o.value===''));
+ if(native&&volume)native.text=`Nativa · ${Math.min(...volume.spacing).toFixed(2)} mm`;
  $('sliceIndex').max=0;$('sliceIndex').value=0;sliceImage=null;
  sliceZoom=1;sliceZoomMode=false;
  updateSlicePlan();
@@ -100,27 +115,51 @@ function syncSliceMode(){
  sliceZoom=1;sliceZoomMode=false;
  schedule();
 }
-// Range limits drawn on the working view; they are planes perpendicular to the output slices.
-function limitGeometry(name,layout){
- if(!volume||!layout||name!==$('sliceSource').value)return null;
- const limits=Reformat.limitsOn(name,$('slicePlane').value);
- if(!limits)return null;
- const map=SOURCE_AXES[name],axis=limits.axis,count=[volume.nx,volume.ny,volume.nz][axis];
- const toScreen=mm=>{
+// Maps millimetres to screen for either axis an MPR view shows.
+function viewGeometry(name,layout){
+ const map=SOURCE_AXES[name];
+ if(!volume||!layout||!map)return null;
+ const counts=[volume.nx,volume.ny,volume.nz];
+ const vertical=axis=>axis===map.horizontal;
+ const toScreen=(axis,mm)=>{
   const index=(mm-volume.origin[axis])/volume.spacing[axis];
-  if(limits.direction==='vertical')return layout.left+(index+.5)/layout.iw*layout.w;
-  const j=map.flip?count-1-index:index;
+  if(vertical(axis))return layout.left+(index+.5)/layout.iw*layout.w;
+  const j=map.flip?counts[axis]-1-index:index;
   return layout.top+(j+.5)/layout.ih*layout.h;
  };
- const toMillimetres=coordinate=>{
+ const toMillimetres=(axis,coordinate)=>{
   let index;
-  if(limits.direction==='vertical')index=(coordinate-layout.left)/layout.w*layout.iw-.5;
-  else{const j=(coordinate-layout.top)/layout.h*layout.ih-.5;index=map.flip?count-1-j:j;}
+  if(vertical(axis))index=(coordinate-layout.left)/layout.w*layout.iw-.5;
+  else{const j=(coordinate-layout.top)/layout.h*layout.ih-.5;index=map.flip?counts[axis]-1-j:j;}
   return volume.origin[axis]+index*volume.spacing[axis];
  };
- return {...limits,toScreen,toMillimetres,layout};
+ return {map,axes:[map.horizontal,map.vertical],layout,toScreen,toMillimetres,direction:axis=>vertical(axis)?'vertical':'horizontal'};
+}
+// Range limits drawn on the working view; they are planes perpendicular to the output slices.
+function limitGeometry(name,layout){
+ if(name!==$('sliceSource').value)return null;
+ const view=viewGeometry(name,layout),limits=Reformat.limitsOn(name,$('slicePlane').value);
+ if(!view||!limits)return null;
+ return {...limits,view,layout,toScreen:mm=>view.toScreen(limits.axis,mm),toMillimetres:coordinate=>view.toMillimetres(limits.axis,coordinate)};
+}
+// The requested field of view crops two axes; each MPR shows whichever of them it displays.
+function drawFieldLimits(name,ctx,layout){
+ const view=viewGeometry(name,layout);
+ if(!view||!slicePlan||!slicePlan.square)return;
+ const frame=Reformat.PLANES[slicePlan.plane],half=slicePlan.field/2,l=layout;
+ ctx.strokeStyle='#f0b26b';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();
+ for(const axis of view.axes){
+  if(axis!==frame.colAxis&&axis!==frame.rowAxis)continue;
+  for(const millimetres of [slicePlan.centre[axis]-half,slicePlan.centre[axis]+half]){
+   const c=view.toScreen(axis,millimetres);
+   if(view.direction(axis)==='vertical'){if(c<l.left||c>l.left+l.w)continue;ctx.moveTo(c,l.top);ctx.lineTo(c,l.top+l.h);}
+   else{if(c<l.top||c>l.top+l.h)continue;ctx.moveTo(l.left,c);ctx.lineTo(l.left+l.w,c);}
+  }
+ }
+ ctx.stroke();ctx.setLineDash([]);
 }
 function reformatOverlay(name,ctx,layout){
+ drawFieldLimits(name,ctx,layout);
  const geometry=limitGeometry(name,layout);
  if(!geometry)return;
  const from=sliceNumber('sliceFrom'),to=sliceNumber('sliceTo');
@@ -227,7 +266,15 @@ async function exportSlices(){
 $('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();updateSlicePlan();});
 $('slicePlane').addEventListener('change',()=>{resetSliceRange();updateSlicePlan();});
 $('sliceFull').addEventListener('click',()=>{resetSliceRange();updateSlicePlan();});
-for(const id of ['sliceDistance','sliceThickness','sliceFrom','sliceTo'])$(id).addEventListener('input',updateSlicePlan);
+$('sliceFullField').addEventListener('click',()=>{$('sliceFov').value='';sliceCentre=null;updateSlicePlan();});
+$('sliceCentre').addEventListener('click',()=>{
+ if(!volume)return;
+ sliceCentre=position.map((index,a)=>volume.origin[a]+index*volume.spacing[a]);
+ if($('sliceFov').value==='')$('sliceFov').value=String(Math.ceil(coveringField()));
+ updateSlicePlan();
+});
+for(const id of ['sliceDistance','sliceThickness','sliceFrom','sliceTo','sliceFov'])$(id).addEventListener('input',updateSlicePlan);
+$('slicePixel').addEventListener('change',updateSlicePlan);
 for(const id of ['sliceCombine','sliceContent'])$(id).addEventListener('change',()=>{if(id==='sliceContent')sliceContentChosen=true;sliceImage=null;updateSlicePlan();});
 $('sliceGenerate').addEventListener('click',()=>{
  if(!updateSlicePlan())return;

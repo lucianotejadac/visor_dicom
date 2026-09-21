@@ -140,6 +140,44 @@ test('Reformat rejects invalid spacing, thickness, plane and empty ranges',()=>{
  assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,combine:'media'}),/Combinación/);
  assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,from:60,to:80}),/fuera del volumen/);
 });
+test('Resolution sets the pixel size and the matrix that covers the same field',()=>{
+ const native=plan(graded,{plane:'axial',distance:2,thickness:2});
+ assert.equal(native.pixel,2);assert.deepEqual([native.columns,native.rows],[4,5]);assert.equal(native.square,false);
+ const fine=plan(graded,{plane:'axial',distance:2,thickness:2,pixel:1});
+ assert.equal(fine.pixel,1);assert.deepEqual([fine.columns,fine.rows],[7,9]);
+ assert.deepEqual(fine.position(0),native.position(0),'a finer pixel keeps the same corner');
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,pixel:0}),/resolución/);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,pixel:.001}),/Matriz de salida/);
+});
+test('A requested field of view is square, centred and edge to edge',()=>{
+ const p=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,pixel:2});
+ assert.equal(p.square,true);assert.deepEqual([p.columns,p.rows],[4,4]);
+ assert.deepEqual(p.fieldOfView,[8,8]);
+ // Volume centre is (13, 24, 35); half the field less half a pixel puts the first centre at 10 and 21.
+ assert.deepEqual(p.position(0),[10,21,30]);
+ const moved=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,pixel:2,center:[15,26,35]});
+ assert.deepEqual(moved.position(0),[12,23,30]);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,fov:0}),/campo de visión/);
+});
+test('The field of view keeps each plane its own orientation corner',()=>{
+ const coronal=plan(graded,{plane:'coronal',distance:2,thickness:2,fov:6,pixel:2});
+ assert.deepEqual([coronal.columns,coronal.rows],[3,3]);
+ assert.deepEqual(coronal.position(0),[11,20,37],'rows still start superior');
+ const sagittal=plan(graded,{plane:'sagittal',distance:2,thickness:2,fov:6,pixel:2});
+ assert.deepEqual(sagittal.position(0),[10,22,37]);
+});
+test('Every reformatted pixel carries the intensity of its own physical position',()=>{
+ const full=plan(graded,{plane:'coronal',distance:2,thickness:1});
+ const cropped=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:6,pixel:2});
+ for(const p of [full,cropped]){
+  const image=renderSlice(p,1,{volume:graded,window:100,level:50}),corner=p.position(1);
+  for(const [i,j] of [[0,0],[1,1],[p.columns-1,p.rows-1]]){
+   const z=corner[2]+i*p.pixel*p.col[2]+j*p.pixel*p.row[2];
+   assert.ok(Math.abs(image.values[i+p.columns*j]-z)<1e-4,`campo ${p.field}, píxel ${i},${j}`);
+  }
+ }
+ assert.deepEqual([cropped.position(1)[2],full.position(1)[2]],[37,40]);
+});
 test('RGB conversion drops the alpha channel in order',()=>assert.deepEqual([...toRgb24(Uint8ClampedArray.from([1,2,3,255,4,5,6,255]))],[1,2,3,4,5,6]));
 test('Secondary Capture RGB round-trips through the parser with geometry and pixels',()=>{
  const p=plan(graded,{plane:'coronal',distance:2,thickness:4}),image=renderSlice(p,1,{volume:graded,window:100,level:50});

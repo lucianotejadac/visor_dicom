@@ -2,6 +2,8 @@
 #sliceCanvas{cursor:ns-resize}
 #sliceFull{font-size:11px;width:100%;margin-top:8px}
 #slicePlan{padding:8px;border-left:2px solid #7ad7ff;background:#16222e;margin-top:14px}
+.offsets select{margin-top:5px;padding:6px 4px;font-size:12px}
+#sliceFullField,#sliceCentre{font-size:11px;padding:8px 6px}
 #sliceGenerate,#sliceExport{font-size:12px}
 #sliceGenerate{border-color:#7ad7ff}
 #sliceExport:disabled{opacity:.45;cursor:default}

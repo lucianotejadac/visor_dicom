@@ -175,6 +175,55 @@ test('Loading another volume replans from scratch',()=>{
  assert.equal(Number(el('sliceIndex').value),0);
  assert.equal(run('slicePlan.plane'),'axial');
 });
+test('Each MPR maps the two axes it shows, both ways',()=>{
+ assert.equal(run('JSON.stringify(viewGeometry("axial",layouts.axial).axes)'),'[0,1]');
+ assert.equal(run('JSON.stringify(viewGeometry("coronal",layouts.coronal).axes)'),'[0,2]');
+ assert.equal(run('JSON.stringify(viewGeometry("sagittal",layouts.sagittal).axes)'),'[1,2]');
+ assert.equal(run('viewGeometry("axial",layouts.axial).direction(0)'),'vertical');
+ assert.equal(run('viewGeometry("axial",layouts.axial).direction(1)'),'horizontal');
+ for(const [name,axis] of [['coronal',0],['coronal',2],['sagittal',1]])
+  assert.ok(run(`Math.abs(viewGeometry("${name}",layouts.${name}).toMillimetres(${axis},viewGeometry("${name}",layouts.${name}).toScreen(${axis},100))-100)`)<1e-6,`${name}/${axis}`);
+});
+test('Resolution changes the output matrix and reports the pixel size',()=>{
+ assert.equal(run('slicePlan.pixel'),1.4);
+ assert.equal(run('slicePlan.columns'),128);
+ el('slicePixel').value='0.5';el('slicePixel').fire('change');
+ assert.equal(run('slicePlan.pixel'),.5);
+ assert.equal(run('slicePlan.columns'),357);
+ assert.match(el('slicePlan').textContent,/matriz 357 × 357 · 0\.50 mm\/px/);
+ assert.match(el('slicePlan').textContent,/por debajo del vóxel/);
+ assert.match(el('slicePlan').textContent,/MB al exportar/);
+ el('slicePixel').value='';el('slicePixel').fire('change');
+ assert.equal(run('slicePlan.columns'),128);
+});
+test('A field of view crops a centred square and the full field restores the volume fit',()=>{
+ el('sliceFov').value='100';el('sliceFov').fire('input');
+ assert.equal(run('slicePlan.square'),true);
+ assert.equal(run('slicePlan.columns'),71);
+ assert.match(el('slicePlan').textContent,/campo 100 mm centrado/);
+ el('sliceFullField').fire('click');
+ assert.equal(el('sliceFov').value,'');
+ assert.equal(run('slicePlan.square'),false);
+ assert.equal(run('slicePlan.columns'),128);
+ assert.match(el('slicePlan').textContent,/campo completo 179 × 179 mm/);
+});
+test('Centring takes the field to the reference and warns when it exceeds the volume',()=>{
+ el('sliceCentre').fire('click');
+ assert.equal(el('sliceFov').value,'180');
+ assert.equal(run('JSON.stringify(sliceCentre)'),JSON.stringify([64*1.4,64*1.4,72*1.5]));
+ assert.equal(run('slicePlan.square'),true);
+ assert.equal(run('slicePlan.columns'),129);
+ assert.match(el('slicePlan').textContent,/borde negro/);
+ el('sliceFullField').fire('click');
+ assert.equal(run('sliceCentre'),null);
+});
+test('Invalid field of view is refused instead of silently ignored',()=>{
+ el('sliceFov').value='0';el('sliceFov').fire('input');
+ assert.equal(run('slicePlan'),null);
+ assert.match(el('slicePlan').textContent,/campo de visión/);
+ el('sliceFov').value='';el('sliceFov').fire('input');
+ assert.equal(run('slicePlan.square'),false);
+});
 test('Slice canvas zoom works like MPR: margin triggers zoom',()=>{
  el('sliceGenerate').fire('click');flush();
  run('sliceZoom=1');const before=run('sliceZoom');

@@ -29,10 +29,27 @@ function plan(v,options={}){
  if(to<from)[from,to]=[to,from];
  from=Math.max(box[axis][0],from);to=Math.min(box[axis][1],to);
  if(to<from)throw Error('El rango seleccionado queda fuera del volumen');
- const pixel=Math.min(...v.spacing);
- const columns=Math.round((box[frame.colAxis][1]-box[frame.colAxis][0])/pixel)+1;
- const rows=Math.round((box[frame.rowAxis][1]-box[frame.rowAxis][0])/pixel)+1;
- if(columns*rows>maxPixels)throw Error(`Matriz de salida demasiado grande (${columns} × ${rows})`);
+ const native=Math.min(...v.spacing);
+ const pixel=options.pixel===undefined||options.pixel===null?native:Number(options.pixel);
+ if(!Number.isFinite(pixel)||pixel<=0)throw Error('La resolución debe ser un tamaño de píxel mayor que cero');
+ // No field of view given: fit the whole plane, voxel centre to voxel centre, as the volume sits.
+ const field=options.fov===undefined||options.fov===null||options.fov===''?null:Number(options.fov);
+ if(field!==null&&(!Number.isFinite(field)||field<=0))throw Error('El campo de visión debe ser mayor que cero');
+ const centre=options.center&&options.center.every(Number.isFinite)?options.center:box.map(b=>(b[0]+b[1])/2);
+ let columns,rows,corner=[0,0,0];
+ if(field===null){
+  columns=Math.round((box[frame.colAxis][1]-box[frame.colAxis][0])/pixel)+1;
+  rows=Math.round((box[frame.rowAxis][1]-box[frame.rowAxis][0])/pixel)+1;
+  corner[frame.colAxis]=box[frame.colAxis][0];
+  corner[frame.rowAxis]=frame.row[frame.rowAxis]>0?box[frame.rowAxis][0]:box[frame.rowAxis][1];
+ }else{
+  // A requested field is square and centred: edge to edge, as a scanner states it.
+  columns=rows=Math.max(2,Math.round(field/pixel));
+  const half=field/2-pixel/2;
+  corner[frame.colAxis]=centre[frame.colAxis]-frame.col[frame.colAxis]*half;
+  corner[frame.rowAxis]=centre[frame.rowAxis]-frame.row[frame.rowAxis]*half;
+ }
+ if(columns*rows>maxPixels)throw Error(`Matriz de salida demasiado grande (${columns} × ${rows}). Reduce el campo o usa un píxel mayor.`);
  const count=Math.floor((to-from)/distance+1e-6)+1;
  if(count>maxSlices)throw Error(`Demasiados cortes (${count}). Aumenta la distancia o reduce el rango.`);
  // One sample per native voxel along the normal; a slab thinner than a voxel is a single interpolated plane.
@@ -40,9 +57,10 @@ function plan(v,options={}){
  const offsets=samples===1?[0]:Array.from({length:samples},(_,s)=>((s+.5)/samples-.5)*thickness);
  const normal=cross(frame.col,frame.row);
  const centers=Array.from({length:count},(_,k)=>from+k*distance);
- const tlhc=center=>{const p=[0,0,0];p[frame.colAxis]=box[frame.colAxis][0];p[frame.rowAxis]=frame.row[frame.rowAxis]>0?box[frame.rowAxis][0]:box[frame.rowAxis][1];p[axis]=center;return p;};
+ const tlhc=center=>{const p=[...corner];p[axis]=center;return p;};
  return {plane,name:frame.name,axis,col:frame.col,row:frame.row,normal,orientation:[...frame.col,...frame.row],
-  columns,rows,pixel,distance,thickness,combine,samples,offsets,from,to,count,centers,box,
+  columns,rows,pixel,native,field,square:field!==null,centre,fieldOfView:[columns*pixel,rows*pixel],
+  distance,thickness,combine,samples,offsets,from,to,count,centers,box,
   position:k=>tlhc(centers[k]),
   location:k=>normal[axis]*centers[k]};
 }
