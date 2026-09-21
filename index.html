@@ -2,8 +2,9 @@
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volumina · Visor DICOM</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="fusion.css"><link rel="stylesheet" href="interaction.css"><link rel="stylesheet" href="reformat.css"></head>
 <body>
-<header><div class="brand"><b>◈</b><div>VOLUMINA<small>VISOR DICOM · PROTOTIPO LOCAL</small></div></div><div class="actions"><button id="demo">Cargar demo</button><label class="button primary">Abrir DICOM<input id="files" type="file" multiple hidden></label><label class="button">Abrir carpeta<input id="folder" type="file" webkitdirectory multiple hidden></label></div></header>
 <main><aside>
+<div class="brand"><b>◈</b><div>VOLUMINA<small>VISOR DICOM · PROTOTIPO LOCAL</small></div></div>
+<div class="actions"><button id="demo">Cargar demo</button><label class="button primary">Abrir DICOM<input id="files" type="file" multiple hidden></label><label class="button">Abrir carpeta<input id="folder" type="file" webkitdirectory multiple hidden></label></div>
 <div class="status" id="status" role="status" aria-live="polite">Listo para cargar · También puedes arrastrar archivos a la ventana.</div>
 <h2>ESTUDIO</h2><p class="privacy">Procesamiento local · Sin subir archivos</p><label>Serie<select id="series" disabled><option>Selecciona archivos DICOM</option></select></label><p id="metadata">Carga una serie o explora la demo sintética.</p>
 <h2>FUSIÓN SPECT / xSPECT / CT</h2>
