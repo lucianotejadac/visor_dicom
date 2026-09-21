@@ -45,7 +45,8 @@ function parseFrames(bytes){
  if(element.encapsulatedPixelData||element.length<count*bits/8||element.dataOffset+count*bits/8>bytes.length)throw Error('Píxeles incompletos');
  const view=new DataView(bytes.buffer,bytes.byteOffset+element.dataOffset,count*bits/8),data=new Float32Array(count),mask=2**stored-1,sign=2**(stored-1),le=syntax!=='1.2.840.10008.1.2.2';
  for(let i=0;i<count;i++){let raw=(bits===8?view.getUint8(i):view.getUint16(i*2,le))&mask;if(signed&&raw>=sign)raw-=2**stored;data[i]=raw*slope+intercept;}
- const common={uid,nx,ny,orientation,spacing,frame:str('x00200052'),patientId:str('x00100020'),issuer:str('x00100021'),modality,sopClass,
+ const common={uid,nx,ny,orientation,spacing,frame:str('x00200052'),patientId:str('x00100020'),issuer:str('x00100021'),modality,sopClass,syntax,
+  instance:str('x00200013'),seriesNumber:str('x00200011'),thickness:str('x00180050'),burned:str('x00280301'),
   studyUid:str('x0020000d'),studyId:str('x00200010'),studyDate:str('x00080020'),studyTime:str('x00080030'),accession:str('x00080050'),patientName:str('x00100010'),referring:str('x00080090'),units:str('x00541001')||str('x00281054'),description:str('x0008103e')||'Serie sin descripción',window:Number(str('x00281051').split('\\')[0]),level:str('x00281050')?Number(str('x00281050').split('\\')[0]):40};
  return sliceIndices.map((index,i)=>({...common,position:[position[0],position[1],position[2]+(index-1)*dz],data:data.subarray(i*nx*ny,(i+1)*nx*ny)}));
 }

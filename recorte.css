@@ -1,0 +1,22 @@
+.offsets{display:flex;gap:8px}
+.offsets label{flex:1;margin:12px 0}
+.offsets input{width:100%;margin-top:8px;border:1px solid #344355;background:#192431;border-radius:7px;color:#e1eaf4;padding:8px 10px;font:inherit}
+.fusion-info{font-size:11px;color:#8798ab;line-height:1.6;margin:10px 0 0}
+.fusion-info.warn{color:#ffc79a}
+.identity{font-size:11px;color:#8798ab;line-height:1.6;margin:10px 0 12px}
+.identity b{display:block;color:#c4d3e2;font-weight:500;margin-top:4px;overflow-wrap:anywhere}
+.actions a.button{text-decoration:none}
+#seriesInfo{font-size:12px;color:var(--muted);line-height:1.7;overflow-wrap:anywhere}
+.progress{height:6px;border-radius:3px;background:#192431;overflow:hidden;margin-top:12px}
+.progress div{height:100%;width:0;background:var(--teal);transition:width .15s linear}
+#cancel{width:100%;margin-top:10px;font-size:12px}
+.pane.audit h3{color:#8fb7e8}
+.audit-body{overflow:auto;padding:14px 15px;font-size:11px;line-height:1.7;color:#93a6ba}
+.audit-body h4{margin:14px 0 4px;font-size:10px;letter-spacing:1.5px;color:#c4d3e2}
+.audit-body h4:first-child{margin-top:0}
+.audit-body p{margin:0;overflow-wrap:anywhere}
+.audit-body .warn{color:#ffc79a}
+.audit-body .keep{color:#8fd6c4}
+.empty-note{color:#a5b9ce}
+.coronal canvas,.sagittal canvas{cursor:ns-resize}
+@media(max-width:850px){.offsets{width:100%}.identity,.progress{width:100%}}

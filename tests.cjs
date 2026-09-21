@@ -80,13 +80,20 @@ const graded=(()=>{
  for(let z=0;z<nz;z++)for(let y=0;y<ny;y++)for(let x=0;x<nx;x++)data[x+nx*(y+ny*z)]=origin[2]+z*spacing[2];
  return {nx,ny,nz,spacing,origin,data,modality:'CT',description:'Rampa sintética',window:100,level:50};
 })();
+// Index of the pixel whose centre sits on a physical point of the slice.
+const pixelAt=(p,k,point)=>{
+ const corner=p.position(k),along=v=>[0,1,2].reduce((sum,a)=>sum+(point[a]-corner[a])*v[a],0);
+ return Math.round(along(p.col)/p.pixel)+p.columns*Math.round(along(p.row)/p.pixel);
+};
 test('Reformat geometry, matrix and image orientation per output plane',()=>{
- const axial=plan(graded,{plane:'axial',distance:2,thickness:2});
- assert.deepEqual([axial.columns,axial.rows],[4,5]);assert.deepEqual(axial.orientation,[1,0,0,0,1,0]);assert.deepEqual(axial.position(0),[10,20,30]);
- const coronal=plan(graded,{plane:'coronal',distance:2,thickness:2});
- assert.deepEqual([coronal.columns,coronal.rows],[4,6]);assert.deepEqual(coronal.orientation,[1,0,0,0,0,-1]);assert.deepEqual(coronal.position(0),[10,20,40]);
- const sagittal=plan(graded,{plane:'sagittal',distance:2,thickness:2});
- assert.deepEqual([sagittal.columns,sagittal.rows],[5,6]);assert.deepEqual(sagittal.orientation,[0,1,0,0,0,-1]);assert.deepEqual(sagittal.position(0),[10,20,40]);
+ const square={distance:2,thickness:2,fov:10,matrix:5};
+ const axial=plan(graded,{...square,plane:'axial'});
+ assert.deepEqual([axial.columns,axial.rows],[5,5]);assert.equal(axial.pixel,2);
+ assert.deepEqual(axial.orientation,[1,0,0,0,1,0]);assert.deepEqual(axial.position(0),[9,20,30]);
+ const coronal=plan(graded,{...square,plane:'coronal'});
+ assert.deepEqual(coronal.orientation,[1,0,0,0,0,-1]);assert.deepEqual(coronal.position(0),[9,20,39]);
+ const sagittal=plan(graded,{...square,plane:'sagittal'});
+ assert.deepEqual(sagittal.orientation,[0,1,0,0,0,-1]);assert.deepEqual(sagittal.position(0),[10,20,39]);
  assert.equal(sagittal.location(0),-10);
 });
 test('Slice distance and range decide how many slices are planned',()=>{
@@ -95,35 +102,41 @@ test('Slice distance and range decide how many slices are planned',()=>{
  assert.equal(plan(graded,{plane:'axial',distance:2,thickness:2,from:39,to:33}).count,4);
 });
 test('Thickness averages native intensities; MIP and MinIP take the slab extremes',()=>{
- const options={volume:graded,window:100,level:50};
- const mean=plan(graded,{plane:'axial',distance:2,thickness:4});
+ const options={volume:graded,window:100,level:50},square={plane:'axial',distance:2,fov:10,matrix:5},inside=[13,24,34];
+ const mean=plan(graded,{...square,thickness:4});
  assert.equal(mean.samples,2);
- assert.ok(Math.abs(renderSlice(mean,2,options).values[0]-34)<1e-4);
- assert.ok(Math.abs(renderSlice(plan(graded,{plane:'axial',distance:2,thickness:4,combine:'max'}),2,options).values[0]-35)<1e-4);
- assert.ok(Math.abs(renderSlice(plan(graded,{plane:'axial',distance:2,thickness:4,combine:'min'}),2,options).values[0]-33)<1e-4);
- assert.equal(plan(graded,{plane:'axial',distance:2,thickness:1}).samples,1);
+ assert.ok(Math.abs(renderSlice(mean,2,options).values[pixelAt(mean,2,inside)]-34)<1e-4);
+ const top=plan(graded,{...square,thickness:4,combine:'max'});
+ assert.ok(Math.abs(renderSlice(top,2,options).values[pixelAt(top,2,inside)]-35)<1e-4);
+ const bottom=plan(graded,{...square,thickness:4,combine:'min'});
+ assert.ok(Math.abs(renderSlice(bottom,2,options).values[pixelAt(bottom,2,inside)]-33)<1e-4);
+ assert.equal(plan(graded,{...square,thickness:1}).samples,1);
 });
 test('Slab samples outside the volume are dropped, never clamped to the edge',()=>{
- const p=plan(graded,{plane:'axial',distance:2,thickness:4});
- assert.ok(Math.abs(renderSlice(p,0,{volume:graded,window:100,level:50}).values[0]-31)<1e-4);
+ const p=plan(graded,{plane:'axial',distance:2,thickness:4,fov:10,matrix:5});
+ assert.ok(Math.abs(renderSlice(p,0,{volume:graded,window:100,level:50}).values[pixelAt(p,0,[13,24,30])]-31)<1e-4);
 });
 test('Reformatted rows follow physical millimetres from superior to inferior',()=>{
- const p=plan(graded,{plane:'coronal',distance:2,thickness:1}),image=renderSlice(p,1,{volume:graded,window:100,level:50});
- assert.equal(image.values[0],40);assert.equal(image.values[p.columns*(p.rows-1)],30);
+ const p=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:12,matrix:6}),image=renderSlice(p,1,{volume:graded,window:100,level:50});
+ assert.equal(image.values[pixelAt(p,1,[12,22,40])],40);
+ assert.equal(image.values[pixelAt(p,1,[12,22,30])],30);
+ assert.ok(Number.isNaN(image.values[0]),'the padded corner stays empty');
 });
 test('Window and level map slab values to gray in the reformat',()=>{
- const p=plan(graded,{plane:'coronal',distance:2,thickness:1}),image=renderSlice(p,0,{volume:graded,window:20,level:35});
- assert.equal(image.rgba[0],Math.round(Math.min(255,(40-25)/19*255)));
- assert.deepEqual([image.rgba[1],image.rgba[2],image.rgba[3]],[image.rgba[0],image.rgba[0],255]);
+ const p=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:12,matrix:6}),image=renderSlice(p,0,{volume:graded,window:20,level:35});
+ const n=pixelAt(p,0,[12,20,40])*4;
+ assert.equal(image.rgba[n],Math.round(Math.min(255,(40-25)/19*255)));
+ assert.deepEqual([image.rgba[n+1],image.rgba[n+2],image.rgba[n+3]],[image.rgba[n],image.rgba[n],255]);
 });
 test('Functional overlay colours the reformat and zero opacity leaves it gray',()=>{
- const p=plan(graded,{plane:'axial',distance:2,thickness:2}),fusion={sample:()=>100,low:0,high:100,alpha:1};
+ const p=plan(graded,{plane:'axial',distance:2,thickness:2,fov:10,matrix:5}),fusion={sample:()=>100,low:0,high:100,alpha:1};
+ const n=pixelAt(p,0,[13,24,30])*4;
  const coloured=renderSlice(p,0,{volume:graded,window:100,level:50,fusion});
- assert.deepEqual([coloured.rgba[0],coloured.rgba[1],coloured.rgba[2]],[255,255,255]);
+ assert.deepEqual([coloured.rgba[n],coloured.rgba[n+1],coloured.rgba[n+2]],[255,255,255]);
  const plain=renderSlice(p,0,{volume:graded,window:100,level:50,fusion:{...fusion,alpha:0}});
- assert.equal(plain.rgba[0],plain.rgba[2]);
+ assert.equal(plain.rgba[n],plain.rgba[n+2]);
  const outside=renderSlice(p,0,{volume:graded,window:100,level:50,fusion:{...fusion,sample:()=>null}});
- assert.equal(outside.rgba[0],outside.rgba[2]);
+ assert.equal(outside.rgba[n],outside.rgba[n+2]);
 });
 test('Range limits are drawn perpendicular to the output plane on the working view',()=>{
  assert.deepEqual(limitsOn('axial','sagittal'),{axis:0,direction:'vertical'});
@@ -139,48 +152,61 @@ test('Reformat rejects invalid spacing, thickness, plane and empty ranges',()=>{
  assert.throws(()=>plan(graded,{plane:'oblicuo',distance:2,thickness:2}),/Plano de salida/);
  assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,combine:'media'}),/Combinación/);
  assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,from:60,to:80}),/fuera del volumen/);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,fov:0}),/campo de visión/);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,matrix:0}),/matriz/i);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,matrix:300.5}),/matriz/i);
+ assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,matrix:4096}),/demasiado grande/);
 });
-test('Resolution sets the pixel size and the matrix that covers the same field',()=>{
- const native=plan(graded,{plane:'axial',distance:2,thickness:2});
- assert.equal(native.pixel,2);assert.deepEqual([native.columns,native.rows],[4,5]);assert.equal(native.square,false);
- const fine=plan(graded,{plane:'axial',distance:2,thickness:2,pixel:1});
- assert.equal(fine.pixel,1);assert.deepEqual([fine.columns,fine.rows],[7,9]);
- assert.deepEqual(fine.position(0),native.position(0),'a finer pixel keeps the same corner');
- assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,pixel:0}),/resolución/);
- assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,pixel:.001}),/Matriz de salida/);
+test('Field of view and matrix decide the pixel size, as on the scanner',()=>{
+ const p=plan(graded,{plane:'axial',distance:2,thickness:2,fov:128,matrix:256});
+ assert.equal(p.matrix,256);assert.deepEqual([p.columns,p.rows],[256,256]);assert.equal(p.pixel,.5);
+ const half=plan(graded,{plane:'axial',distance:2,thickness:2,fov:64,matrix:256});
+ assert.equal(half.pixel,.25,'halving the field at the same matrix halves the pixel');
+ const coarse=plan(graded,{plane:'axial',distance:2,thickness:2,fov:128,matrix:64});
+ assert.equal(coarse.pixel,2);
+ assert.deepEqual(coarse.centre,[13,24,35]);
 });
-test('A requested field of view is square, centred and edge to edge',()=>{
- const p=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,pixel:2});
- assert.equal(p.square,true);assert.deepEqual([p.columns,p.rows],[4,4]);
- assert.deepEqual(p.fieldOfView,[8,8]);
+test('The default field covers the volume and picks the matrix nearest the voxel',()=>{
+ assert.equal(Reformat.covering(graded,'axial'),10);
+ assert.equal(Reformat.covering(graded,'coronal'),12);
+ assert.equal(Reformat.covering(graded,'sagittal'),12);
+ assert.equal(Reformat.defaultMatrix(716.8,1.4),512);
+ assert.equal(Reformat.defaultMatrix(179.2,1.4),128);
+ assert.equal(Reformat.defaultMatrix(10,2),64,'a volume narrower than 64 pixels still gets the smallest matrix');
+ const p=plan(graded,{plane:'coronal',distance:2,thickness:2});
+ assert.equal(p.field,12);assert.equal(p.matrix,64);assert.equal(p.covering,12);
+});
+test('A field of view is square, centred and edge to edge',()=>{
+ const p=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,matrix:4});
+ assert.deepEqual([p.columns,p.rows],[4,4]);assert.equal(p.pixel,2);
  // Volume centre is (13, 24, 35); half the field less half a pixel puts the first centre at 10 and 21.
  assert.deepEqual(p.position(0),[10,21,30]);
- const moved=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,pixel:2,center:[15,26,35]});
+ const moved=plan(graded,{plane:'axial',distance:2,thickness:2,fov:8,matrix:4,center:[15,26,35]});
  assert.deepEqual(moved.position(0),[12,23,30]);
- assert.throws(()=>plan(graded,{plane:'axial',distance:2,thickness:2,fov:0}),/campo de visión/);
 });
 test('The field of view keeps each plane its own orientation corner',()=>{
- const coronal=plan(graded,{plane:'coronal',distance:2,thickness:2,fov:6,pixel:2});
+ const coronal=plan(graded,{plane:'coronal',distance:2,thickness:2,fov:6,matrix:3});
  assert.deepEqual([coronal.columns,coronal.rows],[3,3]);
  assert.deepEqual(coronal.position(0),[11,20,37],'rows still start superior');
- const sagittal=plan(graded,{plane:'sagittal',distance:2,thickness:2,fov:6,pixel:2});
+ const sagittal=plan(graded,{plane:'sagittal',distance:2,thickness:2,fov:6,matrix:3});
  assert.deepEqual(sagittal.position(0),[10,22,37]);
 });
 test('Every reformatted pixel carries the intensity of its own physical position',()=>{
- const full=plan(graded,{plane:'coronal',distance:2,thickness:1});
- const cropped=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:6,pixel:2});
- for(const p of [full,cropped]){
+ const wide=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:12,matrix:6});
+ const tight=plan(graded,{plane:'coronal',distance:2,thickness:1,fov:6,matrix:3});
+ for(const p of [wide,tight]){
   const image=renderSlice(p,1,{volume:graded,window:100,level:50}),corner=p.position(1);
-  for(const [i,j] of [[0,0],[1,1],[p.columns-1,p.rows-1]]){
-   const z=corner[2]+i*p.pixel*p.col[2]+j*p.pixel*p.row[2];
-   assert.ok(Math.abs(image.values[i+p.columns*j]-z)<1e-4,`campo ${p.field}, píxel ${i},${j}`);
+  for(let j=0;j<p.rows;j++)for(let i=0;i<p.columns;i++){
+   const point=[0,1,2].map(a=>corner[a]+i*p.pixel*p.col[a]+j*p.pixel*p.row[a]),value=image.values[i+p.columns*j];
+   const inside=point[0]>=10&&point[0]<=16&&point[2]>=30&&point[2]<=40;
+   if(inside)assert.ok(Math.abs(value-point[2])<1e-4,`FoV ${p.field}, píxel ${i},${j}`);
+   else assert.ok(Number.isNaN(value),`FoV ${p.field}, píxel ${i},${j} debería quedar vacío`);
   }
  }
- assert.deepEqual([cropped.position(1)[2],full.position(1)[2]],[37,40]);
 });
 test('RGB conversion drops the alpha channel in order',()=>assert.deepEqual([...toRgb24(Uint8ClampedArray.from([1,2,3,255,4,5,6,255]))],[1,2,3,4,5,6]));
 test('Secondary Capture RGB round-trips through the parser with geometry and pixels',()=>{
- const p=plan(graded,{plane:'coronal',distance:2,thickness:4}),image=renderSlice(p,1,{volume:graded,window:100,level:50});
+ const p=plan(graded,{plane:'coronal',distance:2,thickness:4,fov:12,matrix:6}),image=renderSlice(p,1,{volume:graded,window:100,level:50});
  const bytes=DicomWrite.secondaryCapture({rgb:toRgb24(image.rgba),columns:p.columns,rows:p.rows,position:p.position(1),orientation:p.orientation,
   pixelSpacing:[p.pixel,p.pixel],sliceLocation:p.location(1),sliceThickness:p.thickness,spacingBetweenSlices:p.distance,
   studyUid:'1.2.3',seriesUid:'1.2.4',frameUid:'1.2.5',patientId:'test-patient',patientName:'Prueba^Volumina',
@@ -194,7 +220,7 @@ test('Secondary Capture RGB round-trips through the parser with geometry and pix
  assert.equal(ds.uint16('x00280010'),p.rows);assert.equal(ds.uint16('x00280011'),p.columns);
  assert.equal(ds.uint16('x00280100'),8);assert.equal(ds.uint16('x00280103'),0);
  assert.equal(ds.string('x00200037'),'1\\0\\0\\0\\0\\-1');
- assert.equal(ds.string('x00200032'),'10\\22\\40');
+ assert.equal(ds.string('x00200032'),'8\\22\\40');
  assert.equal(ds.string('x00280030'),'2\\2');
  assert.equal(ds.string('x00180050'),'4');assert.equal(ds.string('x00180088'),'2');
  assert.equal(ds.string('x00201041'),'22');

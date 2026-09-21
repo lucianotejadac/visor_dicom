@@ -5,7 +5,7 @@
 const SOURCE_AXES={axial:{horizontal:0,vertical:1,flip:false},coronal:{horizontal:0,vertical:2,flip:true},sagittal:{horizontal:1,vertical:2,flip:true}};
 const PLANE_LABELS={axial:'Axial',coronal:'Coronal',sagittal:'Sagital'};
 let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null;
-const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo'];
+const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo','sliceFov'];
 const sliceNumber=id=>Number($(id).value);
 function sliceAxis(){const frame=Reformat.PLANES[$('slicePlane').value];return frame?frame.axis:2;}
 function sliceExtent(axis){const box=Reformat.bounds(volume);return box[axis];}
@@ -27,17 +27,19 @@ function refreshSliceContent(){
  if(!fusionSample&&select.value==='fusion')select.value='base';
  if(fusionSample&&!sliceContentChosen)select.value='fusion';
 }
-// An empty field of view means "fit the volume"; an empty resolution means the native voxel.
+// Field of view in millimetres and matrix in pixels per side, as syngo states them.
 function planOptions(){
  return {plane:$('slicePlane').value,distance:sliceNumber('sliceDistance'),thickness:sliceNumber('sliceThickness'),
   combine:$('sliceCombine').value,from:sliceNumber('sliceFrom'),to:sliceNumber('sliceTo'),
-  fov:$('sliceFov').value===''?null:sliceNumber('sliceFov'),
-  pixel:$('slicePixel').value===''?null:Number($('slicePixel').value),
-  center:sliceCentre};
+  fov:sliceNumber('sliceFov'),matrix:Number($('sliceMatrix').value),center:sliceCentre};
 }
-function coveringField(){
- const frame=Reformat.PLANES[$('slicePlane').value],box=Reformat.bounds(volume);
- return Math.max(...[frame.colAxis,frame.rowAxis].map(a=>box[a][1]-box[a][0]+volume.spacing[a]));
+function coveringField(){return Reformat.covering(volume,$('slicePlane').value);}
+function resetSliceField(){
+ if(!volume)return;
+ sliceCentre=null;
+ const field=Math.ceil(coveringField());
+ $('sliceFov').value=String(field);
+ $('sliceMatrix').value=String(Reformat.defaultMatrix(field,Math.min(...volume.spacing)));
 }
 function updateSlicePlan(){
  slicePlan=null;$('sliceExport').disabled=true;
@@ -47,13 +49,12 @@ function updateSlicePlan(){
  try{
   slicePlan=Reformat.plan(volume,planOptions());
   const p=slicePlan,thin=p.thickness<volume.spacing[p.axis]-1e-6,megabytes=p.columns*p.rows*3*p.count/1048576;
-  const field=p.square?`campo ${p.field.toFixed(0)} mm centrado`:`campo completo ${p.fieldOfView[0].toFixed(0)} × ${p.fieldOfView[1].toFixed(0)} mm`;
-  $('slicePlan').textContent=`${p.count} corte(s) ${p.name}es · matriz ${p.columns} × ${p.rows} · ${p.pixel.toFixed(2)} mm/px · ${field} · `+
+  $('slicePlan').textContent=`${p.count} corte(s) ${p.name}es · FoV ${p.field.toFixed(0)} mm · matriz ${p.matrix} × ${p.matrix} · ${p.pixel.toFixed(2)} mm/px · `+
    `${p.distance} mm entre cortes, ${p.thickness} mm de grosor (${Reformat.COMBINERS[p.combine]} de ${p.samples} muestra(s)) · `+
    `${megabytes<10?megabytes.toFixed(1):Math.round(megabytes)} MB al exportar`+
    (thin?' · grosor menor que el vóxel: corte interpolado, no añade información.':'')+
    (p.pixel<p.native-1e-6?` · píxel por debajo del vóxel de ${p.native.toFixed(2)} mm: interpola, no añade detalle.`:'')+
-   (p.square&&p.field>coveringField()+1e-6?' · el campo excede el volumen: quedará borde negro.':'')+
+   (p.field>p.covering+2?' · el FoV excede el volumen: quedará borde negro.':'')+
    (p.distance>p.thickness?' · quedan huecos entre cortes.':p.distance<p.thickness?' · cortes solapados.':'');
   $('sliceExport').disabled=false;
  }catch(e){$('slicePlan').textContent=e.message;}
@@ -65,11 +66,8 @@ function updateSlicePlan(){
  return slicePlan;
 }
 function resetSlicePlanner(){
- sliceContentChosen=false;sliceCentre=null;
- refreshPlaneOptions();refreshSliceContent();resetSliceRange();
- $('sliceFov').value='';$('slicePixel').value='';
- const native=(($('slicePixel').options?[...$('slicePixel').options]:[]).find(o=>o.value===''));
- if(native&&volume)native.text=`Nativa · ${Math.min(...volume.spacing).toFixed(2)} mm`;
+ sliceContentChosen=false;
+ refreshPlaneOptions();refreshSliceContent();resetSliceRange();resetSliceField();
  $('sliceIndex').max=0;$('sliceIndex').value=0;sliceImage=null;
  sliceZoom=1;sliceZoomMode=false;
  updateSlicePlan();
@@ -142,10 +140,10 @@ function limitGeometry(name,layout){
  if(!view||!limits)return null;
  return {...limits,view,layout,toScreen:mm=>view.toScreen(limits.axis,mm),toMillimetres:coordinate=>view.toMillimetres(limits.axis,coordinate)};
 }
-// The requested field of view crops two axes; each MPR shows whichever of them it displays.
+// The field of view bounds two axes; each MPR shows whichever of them it displays.
 function drawFieldLimits(name,ctx,layout){
  const view=viewGeometry(name,layout);
- if(!view||!slicePlan||!slicePlan.square)return;
+ if(!view||!slicePlan)return;
  const frame=Reformat.PLANES[slicePlan.plane],half=slicePlan.field/2,l=layout;
  ctx.strokeStyle='#f0b26b';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();
  for(const axis of view.axes){
@@ -263,18 +261,17 @@ async function exportSlices(){
  }catch(e){status(`No se pudo exportar: ${e.message}. Los cortes ya escritos permanecen en la carpeta.`,true);}
  finally{sliceExporting=false;$('sliceExport').disabled=!slicePlan;}
 }
-$('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();updateSlicePlan();});
-$('slicePlane').addEventListener('change',()=>{resetSliceRange();updateSlicePlan();});
+$('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();resetSliceField();updateSlicePlan();});
+$('slicePlane').addEventListener('change',()=>{resetSliceRange();resetSliceField();updateSlicePlan();});
 $('sliceFull').addEventListener('click',()=>{resetSliceRange();updateSlicePlan();});
-$('sliceFullField').addEventListener('click',()=>{$('sliceFov').value='';sliceCentre=null;updateSlicePlan();});
+$('sliceFullField').addEventListener('click',()=>{resetSliceField();updateSlicePlan();});
 $('sliceCentre').addEventListener('click',()=>{
  if(!volume)return;
  sliceCentre=position.map((index,a)=>volume.origin[a]+index*volume.spacing[a]);
- if($('sliceFov').value==='')$('sliceFov').value=String(Math.ceil(coveringField()));
  updateSlicePlan();
 });
-for(const id of ['sliceDistance','sliceThickness','sliceFrom','sliceTo','sliceFov'])$(id).addEventListener('input',updateSlicePlan);
-$('slicePixel').addEventListener('change',updateSlicePlan);
+for(const id of sliceInputs)$(id).addEventListener('input',updateSlicePlan);
+$('sliceMatrix').addEventListener('change',updateSlicePlan);
 for(const id of ['sliceCombine','sliceContent'])$(id).addEventListener('change',()=>{if(id==='sliceContent')sliceContentChosen=true;sliceImage=null;updateSlicePlan();});
 $('sliceGenerate').addEventListener('click',()=>{
  if(!updateSlicePlan())return;

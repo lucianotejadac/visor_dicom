@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volumina · Recortar y anonimizar</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="recorte.css"></head>
+<body>
+<main><aside>
+<div class="brand"><b>◈</b><div>VOLUMINA<small>RECORTAR Y ANONIMIZAR · LOCAL</small></div></div>
+<div class="actions"><label class="button primary">Abrir carpeta<input id="folder" type="file" webkitdirectory multiple hidden></label><label class="button">Abrir DICOM<input id="files" type="file" multiple hidden></label><a class="button" href="index.html">Ir al visor</a></div>
+<div class="status" id="status" role="status" aria-live="polite">Listo para leer una serie · También puedes arrastrar la carpeta a la ventana.</div>
+<h2>SERIE</h2><p class="privacy">Procesamiento local · Sin subir archivos</p>
+<label>Serie axial<select id="series" disabled><option>Abre una carpeta DICOM</option></select></label>
+<p id="seriesInfo">Los archivos se leen en el navegador; no se guardan hasta que exportes.</p>
+<h2>RECORTE EN Z</h2>
+<div class="offsets"><label>Desde corte<input id="fromSlice" type="number" min="1" step="1" value="1" disabled></label><label>Hasta corte<input id="toSlice" type="number" min="1" step="1" value="1" disabled></label></div>
+<div class="tabs"><button id="useRun" type="button" disabled>Tramo contiguo</button><button id="useLimit" type="button" disabled>Máx. 512</button><button id="useAll" type="button" disabled>Todo</button></div>
+<p id="cropInfo" class="fusion-info" role="status" aria-live="polite">Selecciona una serie para planificar el recorte.</p>
+<h2>VISTA</h2>
+<label>Proyección de los localizadores<select id="projection"><option value="max">MIP · máximo</option><option value="mean">Media</option></select></label>
+<label>Preset del corte axial<select id="preset"><option value="400,40">Tejidos blandos</option><option value="1600,-600">Pulmón</option><option value="2000,450">Hueso</option><option value="700,250">Angiografía</option></select></label>
+<label>Ancho <output id="widthOut">400</output><input id="width" type="range" min="1" max="4000" value="400"></label>
+<label>Nivel <output id="levelOut">40</output><input id="level" type="range" min="-1200" max="2000" value="40"></label>
+<h2>SALIDA</h2>
+<p class="identity">Identidad de recambio fija<b id="identity">—</b></p>
+<div class="tabs"><button id="exportFolder" type="button" disabled>Exportar a carpeta</button><button id="exportZip" type="button" disabled>Exportar ZIP</button></div>
+<button id="cancel" type="button" hidden>Cancelar exportación</button>
+<div class="progress" id="progress" hidden><div id="progressBar"></div></div>
+<p id="exportInfo" class="fusion-info" role="status" aria-live="polite">La salida conserva las HU: los píxeles se copian byte a byte.</p>
+<div class="help"><b>Cómo se elige el recorte</b><p>Arrastra las dos líneas sobre el localizador coronal o sagital. La rueda mueve la última línea tocada de a un corte. El panel axial muestra siempre el corte de esa línea.</p><p>«Tramo contiguo» salta al tramo más largo con espaciado uniforme, que es el único que el visor acepta. «Máx. 512» lo acorta a 512 cortes desde el extremo superior.</p></div>
+<p class="notice">Prototipo experimental. No validado para diagnóstico ni para certificar la desidentificación de un estudio. Revisa siempre la salida antes de compartirla: el texto grabado dentro de los píxeles no se borra.</p>
+</aside><section class="workspace">
+<div class="grid">
+<article class="pane coronal"><div class="panehead"><h3>CORONAL <span>LOCALIZADOR</span></h3><output id="coronalOut">—</output></div><div class="view"><canvas id="coronal"></canvas><span class="top">S</span><span class="left">R</span><span class="right">L</span><span class="bottom">I</span><div id="coronalEmpty" class="empty">Abre una carpeta con una serie CT axial</div></div></article>
+<article class="pane sagittal"><div class="panehead"><h3>SAGITAL <span>LOCALIZADOR</span></h3><output id="sagittalOut">—</output></div><div class="view"><canvas id="sagittal"></canvas><span class="top">S</span><span class="left">A</span><span class="right">P</span><span class="bottom">I</span></div></article>
+<article class="pane axial"><div class="panehead"><h3>AXIAL <span id="axialEdge">LÍMITE INFERIOR</span></h3><output id="axialOut">—</output></div><div class="view"><canvas id="axial"></canvas><span class="top">A</span><span class="left">R</span><span class="right">L</span><span class="bottom">P</span></div></article>
+<article class="pane audit"><div class="panehead"><h3>AUDITORÍA <span>QUÉ SALE Y QUÉ NO</span></h3><output id="auditOut">—</output></div><div class="view audit-body" id="audit"><p class="empty-note">Carga una serie para ver qué atributos se eliminan, se vacían y se reemplazan.</p></div></article>
+</div><footer><span id="dimensions">Sin serie</span><span>HTML + JavaScript · Datos en memoria</span></footer>
+</section></main>
+<script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="dicomwrite.js"></script><script src="anon.js"></script><script src="recorte-ui.js"></script></body></html>

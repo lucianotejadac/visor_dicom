@@ -8,8 +8,20 @@ const PLANES={
  sagittal:{axis:0,col:[0,1,0],row:[0,0,-1],colAxis:1,rowAxis:2,name:'sagital'}
 };
 const COMBINERS={mean:'promedio',max:'MIP',min:'MinIP'};
+const MATRICES=[64,128,256,512,1024];
 const size=v=>[v.nx,v.ny,v.nz];
 function bounds(v){return size(v).map((n,a)=>[v.origin[a],v.origin[a]+(n-1)*v.spacing[a]]);}
+// Square field that still covers the whole plane, edge to edge.
+function covering(v,plane){
+ const frame=PLANES[plane];
+ if(!frame)throw Error('Plano de salida no válido');
+ return Math.max(...[frame.colAxis,frame.rowAxis].map(a=>size(v)[a]*v.spacing[a]));
+}
+// Largest standard matrix that does not make the pixel finer than the voxel.
+function defaultMatrix(field,native){
+ const fits=MATRICES.filter(m=>m<=field/native+1e-9);
+ return fits.length?fits[fits.length-1]:MATRICES[0];
+}
 function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
 // Planes perpendicular to the reformat normal show up as lines on this source view.
 function limitsOn(sourcePlane,targetPlane){
@@ -30,26 +42,17 @@ function plan(v,options={}){
  from=Math.max(box[axis][0],from);to=Math.min(box[axis][1],to);
  if(to<from)throw Error('El rango seleccionado queda fuera del volumen');
  const native=Math.min(...v.spacing);
- const pixel=options.pixel===undefined||options.pixel===null?native:Number(options.pixel);
- if(!Number.isFinite(pixel)||pixel<=0)throw Error('La resolución debe ser un tamaño de píxel mayor que cero');
- // No field of view given: fit the whole plane, voxel centre to voxel centre, as the volume sits.
- const field=options.fov===undefined||options.fov===null||options.fov===''?null:Number(options.fov);
- if(field!==null&&(!Number.isFinite(field)||field<=0))throw Error('El campo de visión debe ser mayor que cero');
+ // Field of view and matrix, as a scanner states them: the pixel size is what they produce.
+ const field=options.fov===undefined||options.fov===null||options.fov===''?covering(v,plane):Number(options.fov);
+ if(!Number.isFinite(field)||field<=0)throw Error('El campo de visión debe ser mayor que cero');
+ const matrix=options.matrix===undefined||options.matrix===null||options.matrix===''?defaultMatrix(field,native):Number(options.matrix);
+ if(!Number.isInteger(matrix)||matrix<2||matrix>4096)throw Error('La matriz debe ser un número entero de píxeles por lado');
+ if(matrix*matrix>maxPixels)throw Error(`Matriz ${matrix} × ${matrix} demasiado grande para este prototipo`);
+ const columns=matrix,rows=matrix,pixel=field/matrix;
  const centre=options.center&&options.center.every(Number.isFinite)?options.center:box.map(b=>(b[0]+b[1])/2);
- let columns,rows,corner=[0,0,0];
- if(field===null){
-  columns=Math.round((box[frame.colAxis][1]-box[frame.colAxis][0])/pixel)+1;
-  rows=Math.round((box[frame.rowAxis][1]-box[frame.rowAxis][0])/pixel)+1;
-  corner[frame.colAxis]=box[frame.colAxis][0];
-  corner[frame.rowAxis]=frame.row[frame.rowAxis]>0?box[frame.rowAxis][0]:box[frame.rowAxis][1];
- }else{
-  // A requested field is square and centred: edge to edge, as a scanner states it.
-  columns=rows=Math.max(2,Math.round(field/pixel));
-  const half=field/2-pixel/2;
-  corner[frame.colAxis]=centre[frame.colAxis]-frame.col[frame.colAxis]*half;
-  corner[frame.rowAxis]=centre[frame.rowAxis]-frame.row[frame.rowAxis]*half;
- }
- if(columns*rows>maxPixels)throw Error(`Matriz de salida demasiado grande (${columns} × ${rows}). Reduce el campo o usa un píxel mayor.`);
+ const half=field/2-pixel/2,corner=[0,0,0];
+ corner[frame.colAxis]=centre[frame.colAxis]-frame.col[frame.colAxis]*half;
+ corner[frame.rowAxis]=centre[frame.rowAxis]-frame.row[frame.rowAxis]*half;
  const count=Math.floor((to-from)/distance+1e-6)+1;
  if(count>maxSlices)throw Error(`Demasiados cortes (${count}). Aumenta la distancia o reduce el rango.`);
  // One sample per native voxel along the normal; a slab thinner than a voxel is a single interpolated plane.
@@ -59,7 +62,7 @@ function plan(v,options={}){
  const centers=Array.from({length:count},(_,k)=>from+k*distance);
  const tlhc=center=>{const p=[...corner];p[axis]=center;return p;};
  return {plane,name:frame.name,axis,col:frame.col,row:frame.row,normal,orientation:[...frame.col,...frame.row],
-  columns,rows,pixel,native,field,square:field!==null,centre,fieldOfView:[columns*pixel,rows*pixel],
+  columns,rows,pixel,native,field,matrix,centre,covering:covering(v,plane),
   distance,thickness,combine,samples,offsets,from,to,count,centers,box,
   position:k=>tlhc(centers[k]),
   location:k=>normal[axis]*centers[k]};
@@ -107,5 +110,5 @@ function renderSlice(p,k,options){
  return {rgba,values,activity,columns:p.columns,rows:p.rows};
 }
 function toRgb24(rgba){const out=new Uint8Array(rgba.length/4*3);for(let i=0,o=0;i<rgba.length;i+=4){out[o++]=rgba[i];out[o++]=rgba[i+1];out[o++]=rgba[i+2];}return out;}
-root.Reformat={PLANES,COMBINERS,bounds,limitsOn,plan,slab,renderSlice,toRgb24};
+root.Reformat={PLANES,COMBINERS,MATRICES,bounds,covering,defaultMatrix,limitsOn,plan,slab,renderSlice,toRgb24};
 })(typeof window!=='undefined'?window:globalThis);
