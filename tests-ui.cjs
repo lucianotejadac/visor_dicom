@@ -175,6 +175,30 @@ test('Loading another volume replans from scratch',()=>{
  assert.equal(Number(el('sliceIndex').value),0);
  assert.equal(run('slicePlan.plane'),'axial');
 });
+test('Slice canvas zoom works like MPR: margin triggers zoom',()=>{
+ el('sliceGenerate').fire('click');flush();
+ run('sliceZoom=1');const before=run('sliceZoom');
+ el('sliceCanvas').fire('wheel',{clientX:2,clientY:140,deltaY:-100,deltaMode:0});flush();
+ assert.ok(run('sliceZoom')>before,'margin wheel should zoom');
+ const zoomedIn=run('sliceZoom');
+ el('sliceCanvas').fire('wheel',{clientX:2,clientY:140,deltaY:100,deltaMode:0});flush();
+ assert.ok(run('sliceZoom')<zoomedIn,'margin wheel should zoom out');
+});
+test('Slice canvas inside image with wheel changes corte, outside margin does not',()=>{
+ const index=Number(el('sliceIndex').value);
+ el('sliceCanvas').fire('wheel',{clientX:180,clientY:140,deltaY:100,deltaMode:0});flush();
+ assert.equal(Number(el('sliceIndex').value),index+1,'inside wheel should advance');
+});
+test('Slice canvas pointer drag from margin zooms',()=>{
+ const before=run('sliceZoom'),index=Number(el('sliceIndex').value);
+ el('sliceCanvas').fire('pointerdown',{button:0,pointerId:5,clientX:2,clientY:140});
+ assert.equal(run('sliceZoomMode'),true);
+ el('sliceCanvas').fire('pointermove',{pointerId:5,clientX:2,clientY:80});
+ el('sliceCanvas').fire('pointerup',{pointerId:5});flush();
+ assert.ok(run('sliceZoom')>before,'drag from margin should zoom');
+ assert.equal(Number(el('sliceIndex').value),index,'zoom should not change index');
+ run('sliceZoom=1');flush();
+});
 console.log(`${passed} application integration tests passed (DOM/canvas harness, no browser).`);
 // Optional local-data import check. Original files stay in place; no snapshots or patient logs.
 if(process.argv[2]){

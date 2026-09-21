@@ -4,7 +4,7 @@
 // Source view → image axes. Coronal and sagittal rows run from superior down, as in drawSlices.
 const SOURCE_AXES={axial:{horizontal:0,vertical:1,flip:false},coronal:{horizontal:0,vertical:2,flip:true},sagittal:{horizontal:1,vertical:2,flip:true}};
 const PLANE_LABELS={axial:'Axial',coronal:'Coronal',sagittal:'Sagital'};
-let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false;
+let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null;
 const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo'];
 const sliceNumber=id=>Number($(id).value);
 function sliceAxis(){const frame=Reformat.PLANES[$('slicePlane').value];return frame?frame.axis:2;}
@@ -56,6 +56,7 @@ function resetSlicePlanner(){
  sliceContentChosen=false;
  refreshPlaneOptions();refreshSliceContent();resetSliceRange();
  $('sliceIndex').max=0;$('sliceIndex').value=0;sliceImage=null;
+ sliceZoom=1;sliceZoomMode=false;
  updateSlicePlan();
 }
 function fusionSettings(){
@@ -83,8 +84,10 @@ function drawSlicePreview(){
  const off=document.createElement('canvas');off.width=image.columns;off.height=image.rows;
  const offContext=off.getContext('2d'),buffer=offContext.createImageData(image.columns,image.rows);
  buffer.data.set(image.rgba);offContext.putImageData(buffer,0,0);
- const scale=Math.max(.001,Math.min((cw-24)/image.columns,(ch-24)/image.rows)),w=image.columns*scale,h=image.rows*scale;
+ const baseScale=Math.max(.001,Math.min((cw-24)/image.columns,(ch-24)/image.rows));
+ const scale=baseScale*sliceZoom,w=image.columns*scale,h=image.rows*scale;
  ctx.imageSmoothingEnabled=true;ctx.drawImage(off,(cw-w)/2,(ch-h)/2,w,h);
+ $('sliceZoomHint').textContent=`${Math.round(sliceZoom*100)} % · ${sliceZoomMode?'Zoom activo':'Margen: zoom'}`;
  const p=slicePlan,mm=p.centers[image.index];
  $('volumeTitle').textContent=`CORTES ${p.name.toUpperCase()}`;
  $('volumeKind').textContent=`${image.index+1} / ${p.count} · ${mm.toFixed(1)} mm · ${p.thickness} mm de grosor`;
@@ -92,8 +95,9 @@ function drawSlicePreview(){
 }
 function syncSliceMode(){
  const active=mode==='slices';
- $('sliceCanvas').hidden=!active;$('volume').hidden=active;$('sliceIndex').hidden=!active;
+ $('sliceCanvas').hidden=!active;$('volume').hidden=active;$('sliceIndex').hidden=!active;$('sliceZoomHint').hidden=!active;
  if(!active){$('volumeLegend').textContent='Girar · Arrastrar';$('volumeError').textContent='';}
+ sliceZoom=1;sliceZoomMode=false;
  schedule();
 }
 // Range limits drawn on the working view; they are planes perpendicular to the output slices.
@@ -234,9 +238,44 @@ $('sliceGenerate').addEventListener('click',()=>{
 });
 $('sliceExport').addEventListener('click',exportSlices);
 $('sliceIndex').addEventListener('input',()=>{sliceImage=null;schedule();});
-$('sliceCanvas').addEventListener('wheel',e=>{
+const canvas=$('sliceCanvas');
+function sliceHit(e){
+ const rect=canvas.getBoundingClientRect();
+ if(!rect.width||!rect.height)return null;
+ const x=(e.clientX-rect.left)*canvas.width/rect.width,y=(e.clientY-rect.top)*canvas.height/rect.height;
+ const margin=12*canvas.width/rect.width;
+ return {x,y,outside:x<margin||y<margin||x>canvas.width-margin||y>canvas.height-margin};
+}
+function sliceZoomTo(value){sliceZoom=Math.max(.25,Math.min(8,value));schedule();}
+canvas.addEventListener('wheel',e=>{
  e.preventDefault();
  if(!slicePlan)return;
+ const point=sliceHit(e);
+ if(!point)return;
+ if(point.outside||sliceZoomMode){
+  const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?200:1);
+  sliceZoomTo(sliceZoom*Math.exp(-Math.max(-500,Math.min(500,delta))*.002));
+  return;
+ }
  const next=Math.max(0,Math.min(slicePlan.count-1,Number($('sliceIndex').value)+Math.sign(e.deltaY)));
  $('sliceIndex').value=next;sliceImage=null;schedule();
 },{passive:false});
+canvas.addEventListener('pointerdown',e=>{
+ if(!slicePlan||e.button!==0)return;
+ const point=sliceHit(e);if(!point)return;
+ if(point.outside){sliceZoomMode=true;sliceZoomDrag={id:e.pointerId,y:e.clientY,zoom:sliceZoom};canvas.setPointerCapture(e.pointerId);schedule();return;}
+ sliceZoomMode=false;
+});
+canvas.addEventListener('pointermove',e=>{
+ if(sliceZoomDrag&&sliceZoomDrag.id===e.pointerId){
+  sliceZoomTo(sliceZoomDrag.zoom*Math.exp(Math.max(-500,Math.min(500,sliceZoomDrag.y-e.clientY))*.008));
+  return;
+ }
+ const point=sliceHit(e);
+ canvas.style.cursor=point?.outside?'zoom-in':'crosshair';
+});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{
+ if(sliceZoomDrag?.id===e.pointerId){sliceZoomDrag=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);}
+});
+// Restablecer vistas also returns the slice stack to 100 %.
+$('reset').addEventListener('click',()=>{sliceZoom=1;sliceZoomMode=false;schedule();});
