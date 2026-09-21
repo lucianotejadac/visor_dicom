@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volumina · Visor DICOM</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="fusion.css"><link rel="stylesheet" href="interaction.css"><link rel="stylesheet" href="reformat.css"></head>
+<body>
+<header><div class="brand"><b>◈</b><div>VOLUMINA<small>VISOR DICOM · PROTOTIPO LOCAL</small></div></div><div class="actions"><button id="demo">Cargar demo</button><label class="button primary">Abrir DICOM<input id="files" type="file" multiple hidden></label><label class="button">Abrir carpeta<input id="folder" type="file" webkitdirectory multiple hidden></label></div></header>
+<main><aside>
+<h2>ESTUDIO</h2><p class="privacy">Procesamiento local · Sin subir archivos</p><label>Serie<select id="series" disabled><option>Selecciona archivos DICOM</option></select></label><p id="metadata">Carga una serie o explora la demo sintética.</p>
+<h2>FUSIÓN SPECT / xSPECT / CT</h2>
+<label class="button spect-open">Abrir SPECT / xSPECT<input id="spectFiles" type="file" multiple hidden></label>
+<label class="button spect-open">Abrir carpeta funcional<input id="spectFolder" type="file" webkitdirectory multiple hidden></label>
+<p class="fusion-info">Admite NM y exportaciones PT (xSPECT/PET), incluso archivos sin extensión.</p>
+<label>Serie funcional<select id="spectSeries" disabled><option>Sin SPECT</option></select></label>
+<p id="spectMetadata" class="fusion-info">Abre SPECT solo para MIP/VRT, o carga primero el CT para fusionar.</p>
+<p id="fusionStatus" class="fusion-info" role="status" aria-live="polite">Fusión sin activar.</p>
+<fieldset id="fusionControls" disabled>
+<label class="check"><input id="fusionEnabled" type="checkbox" checked> Mostrar SPECT en MPR</label>
+<label>Opacidad SPECT <output id="fusionOpacityOut">60 %</output><input id="fusionOpacity" type="range" min="0" max="100" value="60"></label>
+<label>Umbral inferior <output id="spectLowOut">5 %</output><input id="spectLow" type="range" min="0" max="99" value="5"></label>
+<label>Saturación superior <output id="spectHighOut">100 %</output><input id="spectHigh" type="range" min="1" max="100" value="100"></label>
+<div class="colorbar" aria-label="Escala SPECT negro rojo amarillo blanco"></div><p id="spectScale" class="fusion-info">Porcentaje del máximo del volumen. Sin SUV.</p>
+<details><summary>Ajuste manual de posición</summary>
+<label class="check"><input id="manualFusion" type="checkbox"> Habilitar ajuste exploratorio</label>
+<p class="fusion-info">Solo traslación en mm. No realiza registro automático ni corrige rotaciones.</p>
+<div class="offsets"><label>+L<input id="offsetX" aria-label="Desplazamiento SPECT hacia izquierda en mm" type="number" min="-1000" max="1000" step="0.5" value="0" disabled></label><label>+P<input id="offsetY" aria-label="Desplazamiento SPECT hacia posterior en mm" type="number" min="-1000" max="1000" step="0.5" value="0" disabled></label><label>+S<input id="offsetZ" aria-label="Desplazamiento SPECT hacia superior en mm" type="number" min="-1000" max="1000" step="0.5" value="0" disabled></label></div>
+<button id="resetOffsets" type="button">Poner desplazamientos a cero</button>
+</details></fieldset>
+<button id="removeSpect" disabled>Quitar SPECT</button>
+<h2>VENTANA BASE</h2><label>Preset<select id="preset"><option value="400,40">Tejidos blandos</option><option value="1600,-600">Pulmón</option><option value="2000,450">Hueso</option><option value="700,250">Angiografía</option></select></label>
+<label>Ancho <output id="widthOut">400</output><input id="width" type="range" min="1" max="4000" value="400"></label><label>Nivel <output id="levelOut">40</output><input id="level" type="range" min="-1200" max="2000" value="40"></label>
+<h2>RECONSTRUCCIÓN 3D</h2>
+<label>Volumen 3D<select id="volumeSource"><option value="base">Volumen base</option><option id="spect3dOption" value="spect" disabled>SPECT / xSPECT cargado</option><option id="fusion3dOption" value="fusion" disabled>CT + SPECT fusionados</option></select></label>
+<div class="tabs"><button class="active" id="vrt">VRT</button><button id="mip">MIP</button><button id="slices">CORTES</button></div>
+<fieldset id="functional3dControls" disabled>
+<label>Umbral 3D <output id="volumeLowOut">5 %</output><input id="volumeLow" type="range" min="0" max="99" value="5"></label>
+<label>Saturación 3D <output id="volumeHighOut">100 %</output><input id="volumeHigh" type="range" min="1" max="100" value="100"></label>
+<label>Color funcional<select id="volumePalette"><option value="hot">Rojo · Amarillo · Blanco</option><option value="gray">Escala de grises</option></select></label>
+</fieldset><label>Opacidad SPECT en fusión 3D <output id="fusion3dOpacityOut">65 %</output><input id="fusion3dOpacity" type="range" min="0" max="100" value="65" disabled></label><p id="volumeScale" class="fusion-info">Selecciona base, SPECT o fusión CT + SPECT.</p>
+<label>Umbral VRT <output id="thresholdOut">120</output><input id="threshold" type="range" min="-1000" max="1500" value="120"></label><label>Opacidad VRT <output id="opacityOut">40</output><input id="opacity" type="range" min="1" max="100" value="40"></label>
+<h2>GENERAR CORTES</h2>
+<label>Ventana de trabajo<select id="sliceSource"><option value="axial">Axial</option><option value="coronal">Coronal</option><option value="sagittal">Sagital</option></select></label>
+<label>Plano de salida<select id="slicePlane"><option value="coronal">Coronal</option><option value="sagittal">Sagital</option></select></label>
+<div class="offsets"><label>Distancia mm<input id="sliceDistance" type="number" min="0.1" max="200" step="0.5" value="3"></label><label>Grosor mm<input id="sliceThickness" type="number" min="0.1" max="200" step="0.5" value="3"></label></div>
+<label>Combinación del grosor<select id="sliceCombine"><option value="mean">Promedio · estándar</option><option value="max">MIP del slab</option><option value="min">MinIP del slab</option></select></label>
+<label>Contenido<select id="sliceContent"><option value="fusion">CT + SPECT fusionados</option><option value="base">Solo volumen base</option></select></label>
+<div class="offsets"><label>Desde mm<input id="sliceFrom" type="number" step="1" value="0"></label><label>Hasta mm<input id="sliceTo" type="number" step="1" value="0"></label></div>
+<button id="sliceFull" type="button">Rango completo</button>
+<p id="slicePlan" class="fusion-info" role="status" aria-live="polite">Carga un volumen para planificar cortes.</p>
+<div class="tabs"><button id="sliceGenerate" type="button">Generar</button><button id="sliceExport" type="button" disabled>Exportar DICOM</button></div>
+<p class="fusion-info">Arrastra las dos líneas del rango sobre la ventana de trabajo. La exportación escribe Secondary Capture RGB: imágenes derivadas en color, sin HU ni Bq/ml y sin volumen 3D.</p>
+<button id="reset">Restablecer vistas</button><div class="help"><b>Explora el volumen</b><p>Doble clic en una vista: ampliar/restaurar. Esc: volver a las cuatro. MPR: clic en imagen para referencias y rueda para cortes. Clic en margen negro y rueda, o arrastra arriba/abajo desde el margen, para zoom.</p><p>3D: arrastra para girar y usa la rueda para acercar.</p><p>CORTES: genera cortes en un plano perpendicular a la ventana de trabajo y recórrelos con la rueda en el cuarto panel.</p></div><p class="notice">Prototipo experimental. No validado para diagnóstico. Admite series axiales regulares, monocromas y sin compresión.</p>
+</aside><section class="workspace">
+<div class="status" id="status" role="status" aria-live="polite">Listo para cargar · También puedes arrastrar archivos a la ventana.</div>
+<button id="restoreViews" class="restore-views" hidden>Volver a las cuatro vistas · Esc</button><div class="grid">
+<article class="pane axial"><div class="panehead"><h3>AXIAL <span>MPR</span></h3><output id="axialOut">—</output></div><div class="view"><canvas id="axial"></canvas><span class="zoom-hint" id="axialZoom">100 % · Margen: zoom</span><span class="top">A</span><span class="left">R</span><span class="right">L</span><span class="bottom">P</span></div><input aria-label="Corte axial" id="axialSlice" type="range" min="0" max="0" value="0"></article>
+<article class="pane coronal"><div class="panehead"><h3>CORONAL <span>MPR</span></h3><output id="coronalOut">—</output></div><div class="view"><canvas id="coronal"></canvas><span class="zoom-hint" id="coronalZoom">100 % · Margen: zoom</span><span class="top">S</span><span class="left">R</span><span class="right">L</span><span class="bottom">I</span></div><input aria-label="Corte coronal" id="coronalSlice" type="range" min="0" max="0" value="0"></article>
+<article class="pane sagittal"><div class="panehead"><h3>SAGITAL <span>MPR</span></h3><output id="sagittalOut">—</output></div><div class="view"><canvas id="sagittal"></canvas><span class="zoom-hint" id="sagittalZoom">100 % · Margen: zoom</span><span class="top">S</span><span class="left">A</span><span class="right">P</span><span class="bottom">I</span></div><input aria-label="Corte sagital" id="sagittalSlice" type="range" min="0" max="0" value="0"></article>
+<article class="pane volume"><div class="panehead"><h3><b id="volumeTitle">VOLUMEN BASE</b> <span id="modeLabel">VRT</span></h3><output id="volumeKind">3D · Una serie</output></div><div class="view"><canvas id="volume"></canvas><canvas id="sliceCanvas" hidden></canvas><div id="volumeError" class="empty"></div></div><input aria-label="Corte reformateado" id="sliceIndex" type="range" min="0" max="0" value="0" hidden><div class="legend" id="volumeLegend">Girar · Arrastrar <span>Zoom · Rueda</span></div></article>
+</div><footer><span id="dimensions">Sin volumen</span><span>HTML + JavaScript · Datos en memoria</span></footer>
+</section></main><script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="reformat.js"></script><script src="dicomwrite.js"></script><script src="app.js"></script><script src="reformat-ui.js"></script></body></html>

@@ -1,0 +1,8 @@
+.view canvas[hidden]{display:none}
+#sliceCanvas{cursor:ns-resize}
+#sliceFull{font-size:11px;width:100%;margin-top:8px}
+#slicePlan{padding:8px;border-left:2px solid #7ad7ff;background:#16222e;margin-top:14px}
+#sliceGenerate,#sliceExport{font-size:12px}
+#sliceGenerate{border-color:#7ad7ff}
+#sliceExport:disabled{opacity:.45;cursor:default}
+@media(max-width:850px){#slicePlan{width:100%}#sliceFull{width:auto}}
