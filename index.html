@@ -4,6 +4,7 @@
 <body>
 <header><div class="brand"><b>◈</b><div>VOLUMINA<small>VISOR DICOM · PROTOTIPO LOCAL</small></div></div><div class="actions"><button id="demo">Cargar demo</button><label class="button primary">Abrir DICOM<input id="files" type="file" multiple hidden></label><label class="button">Abrir carpeta<input id="folder" type="file" webkitdirectory multiple hidden></label></div></header>
 <main><aside>
+<div class="status" id="status" role="status" aria-live="polite">Listo para cargar · También puedes arrastrar archivos a la ventana.</div>
 <h2>ESTUDIO</h2><p class="privacy">Procesamiento local · Sin subir archivos</p><label>Serie<select id="series" disabled><option>Selecciona archivos DICOM</option></select></label><p id="metadata">Carga una serie o explora la demo sintética.</p>
 <h2>FUSIÓN SPECT / xSPECT / CT</h2>
 <label class="button spect-open">Abrir SPECT / xSPECT<input id="spectFiles" type="file" multiple hidden></label>
@@ -49,7 +50,6 @@
 <p class="fusion-info">Arrastra las dos líneas del rango sobre la ventana de trabajo. La exportación escribe Secondary Capture RGB: imágenes derivadas en color, sin HU ni Bq/ml y sin volumen 3D.</p>
 <button id="reset">Restablecer vistas</button><div class="help"><b>Explora el volumen</b><p>Doble clic en una vista: ampliar/restaurar. Esc: volver a las cuatro. MPR: clic en imagen para referencias y rueda para cortes. Clic en margen negro y rueda, o arrastra arriba/abajo desde el margen, para zoom.</p><p>3D: arrastra para girar y usa la rueda para acercar.</p><p>CORTES: genera cortes en un plano perpendicular a la ventana de trabajo y recórrelos con la rueda en el cuarto panel. Rueda o arrastre desde el margen negro: zoom, igual que en los MPR.</p></div><p class="notice">Prototipo experimental. No validado para diagnóstico. Admite series axiales regulares, monocromas y sin compresión.</p>
 </aside><section class="workspace">
-<div class="status" id="status" role="status" aria-live="polite">Listo para cargar · También puedes arrastrar archivos a la ventana.</div>
 <button id="restoreViews" class="restore-views" hidden>Volver a las cuatro vistas · Esc</button><div class="grid">
 <article class="pane axial"><div class="panehead"><h3>AXIAL <span>MPR</span></h3><output id="axialOut">—</output></div><div class="view"><canvas id="axial"></canvas><span class="zoom-hint" id="axialZoom">100 % · Margen: zoom</span><span class="top">A</span><span class="left">R</span><span class="right">L</span><span class="bottom">P</span></div><input aria-label="Corte axial" id="axialSlice" type="range" min="0" max="0" value="0"></article>
 <article class="pane coronal"><div class="panehead"><h3>CORONAL <span>MPR</span></h3><output id="coronalOut">—</output></div><div class="view"><canvas id="coronal"></canvas><span class="zoom-hint" id="coronalZoom">100 % · Margen: zoom</span><span class="top">S</span><span class="left">R</span><span class="right">L</span><span class="bottom">I</span></div><input aria-label="Corte coronal" id="coronalSlice" type="range" min="0" max="0" value="0"></article>

@@ -1,5 +1,5 @@
 .pane[hidden],.restore-views[hidden]{display:none!important}
-.grid.expanded{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:calc(100dvh - 205px);min-height:300px}
+.grid.expanded{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:calc(100dvh - 173px);min-height:300px}
 .restore-views{margin:0 0 10px;padding:7px 12px;font-size:12px}
 .view>.zoom-hint{bottom:8px;left:12px;top:auto;right:auto;background:#080d14c9;border-radius:4px;padding:3px 6px;color:#b9cddd;font-size:10px;pointer-events:none}
 .panehead{user-select:none;cursor:zoom-in}.grid.expanded .panehead{cursor:zoom-out}
