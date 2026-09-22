@@ -3,7 +3,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(__dirname+'/index.html','utf8'),elements=new Map(),queue=[];
 class Element{
- constructor(id=''){this.id=id;this.value='';this.checked=false;this.disabled=false;this.textContent='';this.width=360;this.height=280;this.events={};this.classList={toggle(){},remove(){},add(){}};this.ctx={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData:image=>this.pixels=image.data,drawImage:off=>this.pixels=off.pixels,fillRect(){},setLineDash(){},beginPath(){},moveTo(){},lineTo(){},stroke(){}};}
+ constructor(id=''){this.id=id;this.value='';this.checked=false;this.disabled=false;this.textContent='';this.width=360;this.height=280;this.events={};this.style={};this.classList={toggle(){},remove(){},add(){}};this.ctx={createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData:image=>this.pixels=image.data,drawImage:off=>this.pixels=off.pixels,fillRect(){},setLineDash(){},beginPath(){},moveTo(){},lineTo(){},stroke(){}};}
  addEventListener(name,fn){(this.events[name]??=[]).push(fn);}
  fire(name,details={}){for(const fn of this.events[name]||[])fn({target:this,preventDefault(){},...details});}
  closest(){return null;}
@@ -301,6 +301,42 @@ test('Slice canvas pointer drag from margin zooms',()=>{
  assert.ok(run('sliceZoom')>before,'drag from margin should zoom');
  assert.equal(Number(el('sliceIndex').value),index,'zoom should not change index');
  run('sliceZoom=1');flush();
+});
+test('Right button drag moves the image inside its panel, and only that panel',()=>{
+ el('vrt').fire('click');flush();
+ const reference=run('JSON.stringify(position)');
+ el('axial').fire('pointerdown',{button:2,pointerId:11,clientX:180,clientY:140});
+ el('axial').fire('pointermove',{pointerId:11,clientX:220,clientY:170});
+ el('axial').fire('pointerup',{pointerId:11});flush();
+ assert.equal(run('JSON.stringify(mprPan.axial)'),'[40,30]');
+ assert.equal(run('JSON.stringify(mprPan.coronal)'),'[0,0]');
+ assert.equal(run('JSON.stringify(position)'),reference,'panning must not move the reference');
+ assert.equal(el('axial').style.cursor,'crosshair','the move cursor is released');
+});
+test('A click after panning still lands on the voxel under the pointer',()=>{
+ const l=run('layouts.axial'),ix=Math.floor(l.iw*.4),iy=Math.floor(l.ih*.6);
+ el('axial').fire('pointerdown',{button:0,pointerId:13,clientX:l.left+(ix+.5)*l.w/l.iw,clientY:l.top+(iy+.5)*l.h/l.ih});
+ assert.equal(run('position[0]'),ix);assert.equal(run('position[1]'),iy);
+});
+test('Panning is clamped so the image never leaves the panel, and Reset re-centres it',()=>{
+ el('axial').fire('pointerdown',{button:2,pointerId:12,clientX:0,clientY:0});
+ el('axial').fire('pointermove',{pointerId:12,clientX:9000,clientY:9000});
+ el('axial').fire('pointerup',{pointerId:12});flush();
+ const pan=JSON.parse(run('JSON.stringify(mprPan.axial)'));
+ assert.ok(pan[0]<400&&pan[1]<300,`clamped to ${pan}`);
+ assert.ok(run('layouts.axial.left')<360-39,'at least a sliver stays visible');
+ el('reset').fire('click');flush();
+ assert.equal(run('JSON.stringify(mprPan.axial)'),'[0,0]');
+});
+test('Right button drag also moves the generated slice stack',()=>{
+ el('sliceGenerate').fire('click');flush();
+ el('sliceCanvas').fire('pointerdown',{button:2,pointerId:14,clientX:100,clientY:100});
+ el('sliceCanvas').fire('pointermove',{pointerId:14,clientX:130,clientY:80});
+ el('sliceCanvas').fire('pointerup',{pointerId:14});flush();
+ assert.equal(run('JSON.stringify(slicePan)'),'[30,-20]');
+ assert.equal(Number(el('sliceIndex').value),run('Math.floor((slicePlan.count-1)/2)'),'panning does not change slice');
+ el('reset').fire('click');flush();
+ assert.equal(run('JSON.stringify(slicePan)'),'[0,0]');
 });
 console.log(`${passed} application integration tests passed (DOM/canvas harness, no browser).`);
 // Export drives the File System Access API, so it runs against a recording stand-in.

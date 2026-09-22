@@ -6,6 +6,12 @@ let baseMaximum=0,uploadedVolume=null,uploadedSpect=null;
 const status=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
 const layouts={};
 const mprZoom=Object.fromEntries(names.map(n=>[n,1])),mprZoomMode=Object.fromEntries(names.map(n=>[n,false]));
+const mprPan=Object.fromEntries(names.map(n=>[n,[0,0]]));
+// Panning never pushes the image out of its panel: this much always stays visible.
+function clampPan(pan,cw,ch,w,h){
+ const keep=40,limitX=Math.max(0,(cw+w)/2-keep),limitY=Math.max(0,(ch+h)/2-keep);
+ return [Math.max(-limitX,Math.min(limitX,pan[0])),Math.max(-limitY,Math.min(limitY,pan[1]))];
+}
 let expandedPane=null;
 function expandPane(name){
  expandedPane=expandedPane===name?null:name;
@@ -18,7 +24,7 @@ function expandPane(name){
 for(const name of [...names,'volume'])document.querySelector(`.pane.${name}`).addEventListener('dblclick',e=>{if(e.target.closest('input,button,select,label'))return;e.preventDefault();expandPane(name);});
 $('restoreViews').addEventListener('click',()=>{if(expandedPane)expandPane(expandedPane);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&expandedPane)expandPane(expandedPane);});
-function resetMprZoom(){for(const n of names){mprZoom[n]=1;mprZoomMode[n]=false;}}
+function resetMprZoom(){for(const n of names){mprZoom[n]=1;mprZoomMode[n]=false;mprPan[n]=[0,0];}}
 function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;drawSlices();drawVolume();if(typeof drawSlicePreview==='function')drawSlicePreview();});}}
 function setVolume(v){
  clearSpect();
@@ -142,7 +148,8 @@ function drawSlices(){
     if(activity!==null&&activity>spectLow){const t=Math.min(1,(activity-spectLow)/(spectHigh-spectLow)),rgb=VolumeCore.hotColor(t),alpha=fusionAlpha*Math.min(1,t*4);for(let channel=0;channel<3;channel++)image.data[n+channel]=c*(1-alpha)+rgb[channel]*alpha;}
    }
   }ox.putImageData(image,0,0);
-  const scale=Math.max(.001,Math.min((cw-38)/(iw*sx),(ch-38)/(ih*sy)))*mprZoom[name],w=iw*sx*scale,h=ih*sy*scale,left=(cw-w)/2,top=(ch-h)/2;
+  const scale=Math.max(.001,Math.min((cw-38)/(iw*sx),(ch-38)/(ih*sy)))*mprZoom[name],w=iw*sx*scale,h=ih*sy*scale;
+  const pan=mprPan[name]=clampPan(mprPan[name],cw,ch,w,h),left=(cw-w)/2+pan[0],top=(ch-h)/2+pan[1];
   ctx.fillStyle='#05090e';ctx.fillRect(0,0,cw,ch);ctx.imageSmoothingEnabled=true;ctx.drawImage(off,left,top,w,h);
   const px=k===2?position[1]:position[0],py=k===0?position[1]:v.nz-1-position[2];
   const cx=left+(px+.5)/iw*w,cy=top+(py+.5)/ih*h;
@@ -155,19 +162,29 @@ function drawSlices(){
  });
 }
 names.forEach((name,k)=>{
- let zoomDrag=null;
+ let zoomDrag=null,panDrag=null;
  const canvas=$(name);
+ const devicePixels=()=>{const rect=canvas.getBoundingClientRect();return rect.width?canvas.width/rect.width:1;};
+ // Right button drags the image inside its panel; the browser menu would eat the gesture.
+ canvas.addEventListener('contextmenu',e=>e.preventDefault());
  function hit(e){const rect=canvas.getBoundingClientRect(),l=layouts[name];if(!l||!rect.width||!rect.height)return null;const x=(e.clientX-rect.left)*canvas.width/rect.width,y=(e.clientY-rect.top)*canvas.height/rect.height;const margin=12*canvas.width/rect.width;return {l,x,y,outside:x<l.left||x>=l.left+l.w||y<l.top||y>=l.top+l.h||x<margin||y<margin||x>canvas.width-margin||y>canvas.height-margin};}
  function zoomTo(value){mprZoom[name]=Math.max(.25,Math.min(8,value));schedule();}
  $(name+'Slice').addEventListener('input',e=>{position[2-k]=Number(e.target.value);schedule();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();if(!volume)return;const point=hit(e);if(!point)return;if(point.outside||mprZoomMode[name]){const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?200:1);zoomTo(mprZoom[name]*Math.exp(-Math.max(-500,Math.min(500,delta))*.002));return;}const axis=2-k;position[axis]=Math.max(0,Math.min([volume.nx,volume.ny,volume.nz][axis]-1,position[axis]+Math.sign(e.deltaY)));sync();},{passive:false});
- canvas.addEventListener('pointerdown',e=>{if(!volume||e.button!==0)return;const point=hit(e);if(!point)return;
+ canvas.addEventListener('pointerdown',e=>{
+  if(!volume)return;
+  if(e.button===2){e.preventDefault();panDrag={id:e.pointerId,x:e.clientX,y:e.clientY,from:[...mprPan[name]]};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='move';return;}
+  if(e.button!==0)return;const point=hit(e);if(!point)return;
   if(typeof reformatPointerDown==='function'&&reformatPointerDown(name,point,e,canvas))return;
   if(point.outside){mprZoomMode[name]=true;zoomDrag={id:e.pointerId,y:e.clientY,zoom:mprZoom[name]};canvas.setPointerCapture(e.pointerId);schedule();return;}
   mprZoomMode[name]=false;const {l,x,y}=point,ix=Math.min(l.iw-1,Math.floor((x-l.left)/l.w*l.iw)),iy=Math.min(l.ih-1,Math.floor((y-l.top)/l.h*l.ih));if(k===0){position[0]=ix;position[1]=iy;}else if(k===1){position[0]=ix;position[2]=volume.nz-1-iy;}else{position[1]=ix;position[2]=volume.nz-1-iy;}sync();
  });
- canvas.addEventListener('pointermove',e=>{if(typeof reformatPointerMove==='function'&&reformatPointerMove(name,hit(e),e))return;if(zoomDrag&&zoomDrag.id===e.pointerId){zoomTo(zoomDrag.zoom*Math.exp(Math.max(-500,Math.min(500,zoomDrag.y-e.clientY))*.008));return;}const point=hit(e);canvas.style.cursor=point?.outside?'zoom-in':'crosshair';});
- for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(typeof reformatPointerUp==='function')reformatPointerUp(e,canvas);if(zoomDrag?.id===e.pointerId){zoomDrag=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);}});
+ canvas.addEventListener('pointermove',e=>{if(typeof reformatPointerMove==='function'&&reformatPointerMove(name,hit(e),e))return;
+  if(panDrag&&panDrag.id===e.pointerId){const ratio=devicePixels();mprPan[name]=[panDrag.from[0]+(e.clientX-panDrag.x)*ratio,panDrag.from[1]+(e.clientY-panDrag.y)*ratio];schedule();return;}
+  if(zoomDrag&&zoomDrag.id===e.pointerId){zoomTo(zoomDrag.zoom*Math.exp(Math.max(-500,Math.min(500,zoomDrag.y-e.clientY))*.008));return;}const point=hit(e);canvas.style.cursor=point?.outside?'zoom-in':'crosshair';});
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(typeof reformatPointerUp==='function')reformatPointerUp(e,canvas);
+  if(panDrag?.id===e.pointerId){panDrag=null;canvas.style.cursor='crosshair';if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);}
+  if(zoomDrag?.id===e.pointerId){zoomDrag=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);}});
 });
 let gl=null,program=null,texture=null,spectTexture=null,textureReady=false;
 const vertex=`#version 300 es
