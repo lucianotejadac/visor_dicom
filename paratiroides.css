@@ -25,6 +25,9 @@
 .tutorial-guia{margin:8px 0;padding:8px 10px;border-radius:6px;background:#132a26;border:1px solid #2d5f57;font-size:11px;line-height:1.55;color:#d6ece6}
 .tutorial-guia b{display:block;color:var(--teal);font-size:10px;letter-spacing:1.2px;margin-bottom:4px}
 .tutorial-guia p{margin:0}
+.tutorial-preguntas b{display:block;margin:8px 0 2px;color:#9fd8cc;font-size:10px;letter-spacing:1.2px}
+.tutorial-preguntas ol{padding-left:18px;margin:2px 0}
+.tutorial-preguntas li{margin:4px 0;color:#c9d6e2}
 .tutorial-cierre{margin-top:10px;padding-top:8px;border-top:1px solid #2d5f57}
 .tutorial-cierre button{width:100%;margin:6px 0}
 .tutorial-cierre details{margin-top:6px}

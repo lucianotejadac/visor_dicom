@@ -62,7 +62,7 @@
    {id:'exportar',titulo:'Exportar la serie de cortes como DICOM',hecho:!!hechos.exportado,resaltar:['sliceExport'],
     texto:'«Exportar DICOM» y elegir una carpeta. Se escribe una serie Secondary Capture en color, un archivo por corte, dentro de una carpeta con el nombre de la serie. Es el producto que se revisa en MicroDicom o en cualquier visor.',problema:problemaExportar},
    {id:'png',titulo:'Guardar el PNG del MIP fusionado',hecho:!!hechos.png,resaltar:['exportPng','volumeSource'],
-    texto:'En «Reconstrucción 3D», Volumen 3D = «CT + SPECT fusionados», pestaña MIP, gira el volumen hasta una vista anterior clara y pulsa «PNG» en la cabecera del cuarto panel. Es una captura del panel, no un DICOM.',problema:problemaPng}
+    texto:'En «Reconstrucción 3D», Volumen 3D = «CT + SPECT fusionados», pestaña MIP. El corazón y el hígado captan mucho más sestamibi que cualquier paratiroides y se llevan la escala: sube «Umbral 3D» y baja «Saturación 3D» hasta que aparezcan la tiroides y el foco, gira a una vista anterior y acerca con la rueda. Después «PNG» en la cabecera del cuarto panel. Es una captura del panel, no un DICOM.',problema:problemaPng}
   ];
   // Una fase terminada queda terminada: abrir el CT de la otra fase retira este par de la
   // memoria y las comprobaciones en vivo dejarian de cumplirse.
@@ -113,6 +113,8 @@
   if(estado.plegado){resaltar([]);return;}
   panel.append(h('p',{class:'tutorial-titulo'},c.titulo));
   const part=h('details',{},h('summary',{},'Particularidades y qué buscar'));const ul=h('ul',{});for(const p of c.particularidades)ul.append(h('li',{},p));part.append(ul,h('p',{},c.clinica.hallazgos));panel.append(part);
+  const completo=PARATIROIDES_FASES.every(f=>pasos(f).every(p=>p.hecho));
+  if(!completo)panel.append(preguntasDiscusion(c,false));
   const pest=h('div',{class:'tutorial-fases'});
   for(const f of PARATIROIDES_FASES){const completa=pasos(f).every(p=>p.hecho);pest.append(h('button',{type:'button','aria-pressed':String(estado.fase===f),onclick:()=>{estado.fase=f;guardar();render();}},`${completa?'☑':'☐'} ${nombreFase(f)}`));}
   panel.append(pest);
@@ -138,10 +140,18 @@
   if(completas.length===PARATIROIDES_FASES.length){
    const cierre=h('div',{class:'tutorial-cierre'},h('b',{},'Caso completo'),h('p',{},'Productos: dos DICOM SPECT reconstruidos, dos series de cortes axiales fusionados y dos PNG del MIP. Ahora sí, compara lo que viste con el informe:'));
    const imp=h('details',{},h('summary',{},'Impresión diagnóstica del informe'),h('p',{},c.clinica.impresion));
-   cierre.append(imp,h('p',{},'Para discutir: ¿en qué fase se ve mejor el foco y por qué? ¿Qué aporta el CT de esta calidad a la localización? ¿Qué cambiaría en tu informe si solo tuvieras la planar?'));
-   if(estado.caso===5)cierre.append(h('p',{},'Y lo propio de este caso: compara tu OSEM del precoz con la reconstrucción del equipo del tardío. ¿Qué diferencias son del paciente y cuáles del procesamiento?'));
+   cierre.append(imp,preguntasDiscusion(c,true));
    panel.append(cierre);
   }
+ }
+ // Las preguntas del caso y las del procesamiento, para la discusion en clase. Antes de
+ // terminar van plegadas, para no adelantar la lectura de la imagen.
+ function preguntasDiscusion(c,abierto){
+  const caja=h('details',abierto?{open:'',class:'tutorial-preguntas'}:{class:'tutorial-preguntas'},h('summary',{},'Preguntas para la discusión'));
+  const ol=h('ol',{});for(const q of c.preguntas)ol.append(h('li',{},q));
+  const ol2=h('ol',{});for(const q of PARATIROIDES_PREGUNTAS_PROCESO)ol2.append(h('li',{},q));
+  caja.append(h('b',{},'Sobre este caso'),ol,h('b',{},'Sobre el procesamiento'),ol2);
+  return caja;
  }
  function renderEleccion(){
   panel.append(h('div',{class:'tutorial-cabecera'},h('b',{},'TUTORIAL PARATIROIDES · 2.ª PARTE')),h('p',{},'¿Qué caso traes del simulador?'));

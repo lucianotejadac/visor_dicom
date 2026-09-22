@@ -18,6 +18,15 @@ const PARATIROIDES_VISOR='https://lucianotejadac.github.io/visor_dicom/';
 const PARATIROIDES_SIMULADOR='https://lucianotejadac.github.io/spect-lab-95/';
 const PARATIROIDES_FASES=['precoz','tardio'];
 const PARATIROIDES_NOMBRE_FASE={precoz:'precoz',tardio:'tardío'};
+// Preguntas sobre el procesamiento, comunes a los cinco casos: se discuten con la primera
+// parte hecha, comparando la OSEM de referencia con la de la receta.
+const PARATIROIDES_PREGUNTAS_PROCESO=[
+ 'La OSEM de referencia 1×1 sin correcciones y tu OSEM 2×8 con AC vienen de las mismas proyecciones. ¿Qué cambió en la imagen y a cuál de las cuatro cosas se debe cada cambio: iteraciones, subconjuntos, corrección de atenuación o filtro final?',
+ 'Si hubieras confirmado el registro con 10 mm de error, ¿qué le pasa al mapa μ y dónde se notaría primero en la reconstrucción con AC? ¿Por qué el error importa más en el cuello que en el tórax?',
+ 'El simulador se niega a combinar el CT de la otra fase porque el marco de referencia es distinto. ¿Qué garantiza ese marco en el equipo real y qué no garantiza? Piensa en el paciente que se mueve entre el SPECT y el CT.',
+ '¿Por qué la FBP sirve para revisar el registro pero no se entrega como resultado? ¿Qué ves en ella que la OSEM no tiene, y al revés?',
+ 'La receta fue la misma en las dos fases y en los cinco casos. ¿Qué gana un curso con eso, y qué perdería un servicio clínico que hiciera lo mismo con todos sus pacientes?'
+];
 const PARATIROIDES_CASOS={
  1:{
   titulo:'Adenoma inferior izquierdo',
@@ -31,6 +40,13 @@ const PARATIROIDES_CASOS={
   particularidades:[
    'Es el caso de referencia: 60 vistas por cabezal cada 3° y dos CT diagnósticos de 1.5 mm (247 y 235 cortes).',
    'Lo que buscas está caudal al polo inferior del lóbulo tiroideo izquierdo, y debe persistir en la fase tardía cuando la tiroides ya lavó.'
+  ],
+  preguntas:[
+   'El foco se ve más nítido en la fase tardía aunque la actividad total del cuello es menor. ¿Qué es el «lavado diferencial» del sestamibi y por qué favorece al adenoma frente a la tiroides?',
+   '¿Qué aporta el CT de 1.5 mm a la localización que la planar no puede dar? Piensa en lo que necesita un cirujano para una paratiroidectomía mínimamente invasiva.',
+   'La glándula está caudal al polo inferior izquierdo, la posición más frecuente. ¿Qué otras localizaciones habrías revisado antes de dar el estudio por completo?',
+   'El informe sugiere «complementar con estudio morfológico dirigido». ¿Qué estudio y para qué, si el SPECT/CT ya localizó el foco?',
+   'Con 60 vistas cada 3° la reconstrucción es la mejor de los cinco casos. ¿Qué le pasaría a este mismo foco con 32 vistas? Compara mentalmente con el caso 2.'
   ],
   fases:{
    precoz:{carpetaNm:'archivo «precoz», suelto en la carpeta del caso',carpetaCt:'ct precoz anom',nm:{frames:240,vistas:60,pasoGrados:3,marco:'09c8b716'},ct:{cortes:247,dzMm:1,pixelMm:0.547,espesorMm:1.5,kernel:'B50s',marco:'09c8b716'},
@@ -52,6 +68,13 @@ const PARATIROIDES_CASOS={
    'A diferencia de los otros casos, no hay CT de buena resolución: solo los CT de atenuación, de 3 mm de corte (85 y 82 cortes) y kernel blando B08s. La fusión saldrá tosca y ese CT no sirve para caracterizar nódulos.',
    '32 vistas por cabezal cada 5.625° en vez de 60: proyecciones más ruidosas que en los demás casos.',
    'Un estudio negativo también hay que saber informarlo: el objetivo es demostrar que no hay foco, no encontrar uno a la fuerza.'
+  ],
+  preguntas:[
+   '¿Cómo se demuestra que no hay foco? Enumera qué tuviste que mirar, en qué planos y con qué ventana, para poder afirmar «sin evidencia» y no solo «no lo vi».',
+   'Con el umbral inferior muy bajo y la opacidad alta, algo del ruido de 32 vistas parece un foco. ¿Cómo distingues ruido de captación real? ¿Qué papel juega comparar precoz con tardío?',
+   'Solo hay CT de atenuación, de 3 mm y kernel blando. ¿Para qué sirve ese CT y para qué no? ¿Podrías caracterizar los nódulos TIRADS 3 de la ecografía con él?',
+   'La glándula submandibular derecha capta menos que la izquierda. ¿Es un hallazgo que va en el informe o un distractor? ¿Qué explicaciones tiene?',
+   '¿Qué hace útil un informe negativo? Redacta la impresión en dos frases: qué se descarta, con qué confianza y qué sigue.'
   ],
   registro:'Este CT es de atenuación: baja dosis, cortes de 3 mm y kernel blando, así que se ve borroso. Para el registro usa el preajuste «Contorno externo» de la ventana TC y guíate por la piel del cuello, no por el hueso.',
   fases:{
@@ -75,6 +98,13 @@ const PARATIROIDES_CASOS={
    'La lesión es ectópica: mediastino superior, retrotraqueal, a la altura de T3. En la fusión y en el MIP hay que bajar más de lo habitual y mirar detrás de la tráquea.',
    'Hay además un nódulo tiroideo derecho levemente captante que compite por la atención: no es la lesión principal.'
   ],
+  preguntas:[
+   '¿Por qué una paratiroides puede estar en el mediastino superior? Explica el recorrido embriológico de las glándulas inferiores y qué tiene que ver el timo.',
+   'Una localización retrotraqueal a la altura de T3 cambia el abordaje quirúrgico. ¿Qué necesita saber el cirujano de tu informe: lado, profundidad, relación con la tráquea y el esófago, tamaño?',
+   'Hay dos cosas que captan: el adenoma ectópico y el nódulo tiroideo derecho. ¿Con qué criterios los distinguiste? ¿Intensidad, comportamiento en el tardío, correlato en el CT?',
+   '¿Qué campo de visión axial necesita la adquisición para no perder un adenoma mediastínico? Mira hasta dónde llega el CT de este caso y decide si habría bastado un SPECT solo de cuello.',
+   'Si solo hubieras tenido la planar cervical, ¿habrías visto el foco? ¿Qué te dice eso sobre cuándo indicar SPECT/CT en hiperparatiroidismo?'
+  ],
   fases:{
    precoz:{carpetaNm:'carpeta «precoz»',carpetaCt:'ct precoz',nm:{frames:240,vistas:60,pasoGrados:3,marco:'c1fa16de'},ct:{cortes:251,dzMm:1,pixelMm:0.633,espesorMm:1.5,kernel:'B50s',marco:'c1fa16de'},
     guia:'No te quedes en la tiroides. Baja en axial hasta el mediastino superior y mira detrás de la tráquea, a la altura de T3: hay un nódulo alargado con captación muy intensa. En el MIP se ve de inmediato como el foco más caliente, por debajo del cuello. En el lóbulo tiroideo derecho hay además un nódulo levemente captante.'},
@@ -94,6 +124,13 @@ const PARATIROIDES_CASOS={
   particularidades:[
    'El CT del tardío tiene mucha mejor resolución y más cortes que el del precoz: 272 cortes de 1.5 mm contra 97 cortes de 3 mm con kernel blando. La fusión tardía será mucho más nítida; compárala con la precoz y explica por qué.',
    'El nódulo es posterior al polo inferior del lóbulo tiroideo izquierdo, metido en el surco traqueoesofágico: en axial hay que mirar detrás de la tiroides, no lateral a ella.'
+  ],
+  preguntas:[
+   'Las dos fusiones muestran el mismo foco sobre dos CT distintos. Describe la diferencia que viste y atribúyela: grosor de corte, kernel, dosis, matriz. ¿Cuál de esas cosas mejora la localización y cuál solo la estética?',
+   '¿Por qué el equipo adquiere un CT de baja dosis para la corrección de atenuación y otro diagnóstico? ¿Qué se pierde y qué se gana en dosis al paciente si se hace solo uno?',
+   'El CT de 3 mm sirvió igual para el mapa μ. ¿Por qué la corrección de atenuación tolera un CT tan grueso y la localización anatómica no?',
+   'El nódulo está en el surco traqueoesofágico. ¿Qué estructuras vecinas importan en la cirugía y por qué el cirujano querrá saber si es posterior o lateral a la tiroides?',
+   'En el registro, el CT de atenuación borroso fue más difícil de alinear. ¿Qué referencia anatómica usaste y por qué la piel sirve mejor que el hueso en un CT así?'
   ],
   registro:'El CT precoz es el de atenuación, de 3 mm y kernel blando: se ve borroso. Para registrarlo usa el preajuste «Contorno externo» y guíate por la piel. En la fase tardía el CT es el diagnóstico de 1.5 mm y el registro se hace con el hueso.',
   fases:{
@@ -117,6 +154,13 @@ const PARATIROIDES_CASOS={
    'Esa reconstrucción del equipo viene con la inclinación real del gantry, unos 0.6°. El visor la tolera y lo avisa: a 2.7 mm de vóxel, el desplazamiento en los extremos es menor que un vóxel.',
    '32 vistas cada 5.625°, como el caso 2. Y los dos CT tienen píxel distinto (0.887 y 0.777 mm): campos de visión diferentes en cada fase.',
    'El foco es dudoso por definición: capta en el precoz y no retiene en el tardío. Lo interesante es discutir por qué el informe igual lo describe.'
+  ],
+  preguntas:[
+   'El informe llama al foco «dudoso». ¿Qué comportamiento esperabas de un adenoma en la fase tardía y qué explicaciones tiene que no retenga: lavado rápido, tamaño, tejido tiroideo ectópico, ruido?',
+   'Compara tu OSEM del precoz con la reconstrucción del equipo del tardío. Separa las diferencias del paciente (tiempo, lavado) de las del procesamiento (algoritmo, filtro, escala, número de cortes).',
+   'La reconstrucción del equipo venía con 0.6° de inclinación de gantry y el visor la trató como axial. ¿Cuánto desplazamiento produce eso en el borde del volumen y por qué se considera tolerable con vóxeles de 2.7 mm?',
+   'Con un cintigrama previo negativo en otro centro y PTH de 266, ¿qué peso le das a un foco que solo capta en la fase precoz? ¿Qué estudio recomendarías y por qué el informe pide tomografía computada?',
+   'El lóbulo izquierdo tiene un nódulo grande que capta igual que el parénquima. ¿Cómo evitas confundir un nódulo tiroideo con una paratiroides, y qué te da el CT para eso?'
   ],
   fases:{
    precoz:{carpetaNm:'carpeta «precoz»',carpetaCt:'ct precoz',nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'22de79f6'},ct:{cortes:205,dzMm:1,pixelMm:0.887,espesorMm:1.5,kernel:'B50s',marco:'22de79f6'},
