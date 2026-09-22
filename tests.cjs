@@ -36,6 +36,16 @@ test('Reject duplicate slices',()=>assert.throws(()=>build([slice(0),slice(0)]),
 test('Reject uneven spacing',()=>assert.throws(()=>build([slice(0),slice(2),slice(5)]),/irregular/));
 test('Reject gantry tilt',()=>{const s=slice(2);s.position[0]=1;assert.throws(()=>build([slice(0),s]),/gantry/);});
 test('Reject oblique orientation',()=>assert.throws(()=>parse(dicom({orientation:'0\\1\\0\\1\\0\\0'})),/orientación/));
+// Symbia NM reconstructions carry the real gantry tilt, about half a degree.
+const tilted=degrees=>{const c=Math.cos(degrees*Math.PI/180),s=Math.sin(degrees*Math.PI/180);return [c,s,0,-s,c,0].map(v=>v.toFixed(10)).join('\\');};
+test('NM tolerates a small tilt and reports it; CT does not',()=>{
+ const nm={nm:true,frames:3,values:[10,10,10,10,20,20,20,20,30,30,30,30],slope:'1',intercept:'0'};
+ const v=build(parseFrames(dicom({...nm,orientation:tilted(0.6)})));
+ assert.ok(Math.abs(v.tiltDegrees-0.6)<0.01,'tilt reported in degrees');
+ assert.equal(build(parseFrames(dicom(nm))).tiltDegrees,0);
+ assert.throws(()=>parseFrames(dicom({...nm,orientation:tilted(1.5)})),/orientación/);
+ assert.throws(()=>parse(dicom({orientation:tilted(0.6)})),/orientación/);
+});
 test('Reject compressed transfer syntax',()=>assert.throws(()=>parse(dicom({syntax:'1.2.840.10008.1.2.4.50'})),/sin compresión/));
 test('Reject single slice',()=>assert.throws(()=>build([slice(0)]),/dos cortes/));
 test('Synthetic volume has expected dimensions and finite intensities',()=>{const v=demo();assert.equal(v.data.length,v.nx*v.ny*v.nz);assert.ok(v.data.every(Number.isFinite));assert.equal(v.data[0],-1000);assert.ok(v.data.includes(900));});

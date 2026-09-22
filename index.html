@@ -1,12 +1,13 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volumina · Visor DICOM</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="fusion.css"><link rel="stylesheet" href="interaction.css"><link rel="stylesheet" href="reformat.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volumina · Visor DICOM</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="fusion.css"><link rel="stylesheet" href="interaction.css"><link rel="stylesheet" href="reformat.css"><link rel="stylesheet" href="paratiroides.css"></head>
 <body>
 <main><aside>
 <div class="brand"><b>◈</b><div>VOLUMINA<small>VISOR DICOM · PROTOTIPO LOCAL</small></div></div>
 <div class="actions"><label class="button primary" title="Selecciona todos los cortes de la serie: Ctrl+A marca la carpeta entera">Abrir CT<input id="files" type="file" multiple hidden></label><label class="button spect-open" title="Un único archivo: NM reconstruido multiframe o PT">Abrir SPECT<input id="spectFiles" type="file" hidden></label><button id="demo">Cargar demo</button></div>
 <p class="hint">Abrir CT: marca todos los cortes con Ctrl+A</p>
 <div class="status" id="status" role="status" aria-live="polite">Listo para cargar · También puedes arrastrar archivos a la ventana.</div>
+<section id="tutorialParatiroides" class="tutorial-para" aria-label="Tutorial de paratiroides · segunda parte"></section>
 <h2>ESTUDIO</h2><p class="privacy">Procesamiento local · Sin subir archivos</p><label>Serie<select id="series" disabled><option>Selecciona archivos DICOM</option></select></label><p id="metadata">Carga una serie o explora la demo sintética.</p>
 <h2>FUSIÓN SPECT / xSPECT / CT</h2>
 <p class="fusion-info">Abre el CT con <b>Abrir CT</b>, uno o varios archivos de la misma serie, y el volumen funcional con <b>Abrir SPECT</b>, un único archivo NM reconstruido o PT.</p>
@@ -67,4 +68,4 @@
 <p id="saveTarget" class="fusion-info"></p>
 <button id="saveCancel" type="button">Cancelar</button>
 </div></div>
-<script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="reformat.js"></script><script src="dicomwrite.js"></script><script src="app.js"></script><script src="reformat-ui.js"></script></body></html>
+<script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="reformat.js"></script><script src="dicomwrite.js"></script><script src="app.js"></script><script src="reformat-ui.js"></script><script src="paratiroides-casos.js"></script><script src="paratiroides-visor.js"></script></body></html>

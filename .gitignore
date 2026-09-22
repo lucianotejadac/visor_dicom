@@ -1,2 +1,5 @@
 .test-tools/
 __pycache__/
+_datos/
+_productos/
+prueba-*-temporal.html

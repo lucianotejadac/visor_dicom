@@ -1,0 +1,30 @@
+/* Panel del tutorial de paratiroides, en la barra lateral del visor. */
+.tutorial-para{border:1px solid #2d5f57;border-radius:8px;background:#0e1a1f;padding:10px 12px;margin:0 0 16px;font-size:12px;line-height:1.55;color:#c9d6e2}
+.tutorial-para:empty{display:none}
+.tutorial-cabecera{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;letter-spacing:1.5px;color:var(--teal)}
+.tutorial-cabecera span{display:flex;gap:4px}
+.tutorial-mini{padding:3px 7px;font-size:10px;border-radius:5px}
+.tutorial-titulo{margin:8px 0 4px;font-weight:600;color:#e6eef7}
+.tutorial-para details{margin:6px 0;font-size:11px;color:#aebbcc}
+.tutorial-para summary{cursor:pointer;color:#9fd8cc}
+.tutorial-para ul{padding-left:16px;margin:6px 0}
+.tutorial-fases{display:flex;gap:6px;margin:8px 0}
+.tutorial-fases button{flex:1;padding:6px 8px;font-size:11px}
+.tutorial-fases button[aria-pressed=true]{border-color:var(--teal);color:#e8fff9}
+.tutorial-pasos{padding-left:0;margin:6px 0;list-style:none}
+.tutorial-pasos li{padding:5px 6px;border-radius:5px;margin:2px 0;color:#9aa8b8}
+.tutorial-pasos li.hecho{color:#7fd4b6}
+.tutorial-pasos li.actual{background:#16242c;border:1px solid #2d5f57;color:#e6eef7}
+.tutorial-pasos li p{margin:6px 0 0;font-size:11px;color:#c0cddb}
+.tutorial-pasos .marca{font-family:'Segoe UI Symbol','Segoe UI',sans-serif}
+.tutorial-problema{color:#ffb39f!important;border-left:3px solid #ff8f70;padding-left:8px}
+.tutorial-accion{margin-top:8px;padding:6px 10px;font-size:11px;width:100%}
+.tutorial-casos{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:6px 0}
+.tutorial-casos button{padding:7px 0;font-size:11px}
+.tutorial-nota{font-size:10px;color:var(--muted);margin:6px 0 0}
+.tutorial-cierre{margin-top:10px;padding-top:8px;border-top:1px solid #2d5f57}
+.tutorial-cierre button{width:100%;margin:6px 0}
+.tutorial-cierre details{margin-top:6px}
+/* El control que toca usar ahora. */
+.tutorial-resaltado{outline:2px solid var(--teal);outline-offset:3px;border-radius:7px;animation:tutorialLatido 1.6s ease-in-out infinite}
+@keyframes tutorialLatido{0%,100%{outline-color:var(--teal)}50%{outline-color:#1d6b5e}}

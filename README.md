@@ -63,14 +63,14 @@ El SPECT mostrado **solo** en 3D continúa disponible sin compartir marco de ref
 
 ### DICOM SPECT admitido
 
-NM `RECON TOMO`, MONOCHROME2 sin compresión, con la misma orientación axial estándar que el CT. Admite cortes individuales y multiframe con:
+NM `RECON TOMO`, MONOCHROME2 sin compresión, con orientación axial. Las reconstrucciones NM de los Symbia traen la inclinación real del gantry, del orden de medio grado: hasta 1° se aceptan como axiales y el panel de fusión declara la inclinación y el desplazamiento máximo que implica en los bordes del volumen. El CT sigue exigiendo orientación exacta. Admite cortes individuales y multiframe con:
 
 - Geometría en un único ítem de `Detector Information Sequence` (o a nivel superior si no hay ítems).
 - `Frame Increment Pointer` apuntando únicamente a `Slice Vector`.
 - `Slice Vector` consecutivo `1…N`, `Number of Slices = Number of Frames`, una ventana de energía y un detector reconstruido.
 - `Spacing Between Slices` explícito y distinto de cero. Se respeta su signo para apilar los cortes.
 
-No admite proyecciones de adquisición TOMO, imágenes planares, gated, frames reordenados, SPECT comprimido o reconstrucciones oblicuas. El soporte NM multiframe está comprobado con archivos sintéticos.
+No admite proyecciones de adquisición TOMO, imágenes planares, gated, frames reordenados, SPECT comprimido ni reconstrucciones con más de 1° de inclinación. El soporte NM multiframe está comprobado con archivos sintéticos y con las reconstrucciones de los casos del tutorial de paratiroides.
 
 ### Exportación xSPECT comprobada
 
@@ -88,6 +88,14 @@ El lector acepta PT clásico axial sin compresión, aplica el rescale de cada co
 Referencia de unidades: [DICOM PET Units y Rescale](https://dicom.nema.org/medical/dicom/2021d/output/chtml/part03/sect_C.8.9.html).
 
 Referencias: [DICOM NM Multi-frame](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.4.8.html), [NM Detector](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.4.11.html) y [NM Reconstruction](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.4.13.html).
+
+## Tutorial de paratiroides · segunda parte
+
+Con `?caso=N` en la URL, o eligiendo el caso en el panel **Tutorial paratiroides** de la barra lateral, el visor guía la segunda parte de los cinco casos de SPECT/CT de paratiroides cuya primera parte se hace en [SPECT Lab 95](https://lucianotejadac.github.io/spect-lab-95/). Para cada fase, precoz y tardía: abrir el CT de esa fase, abrir el SPECT que el simulador exportó como «Caso N fase» (o, en el caso 5, la reconstrucción del equipo), revisar la fusión, generar los cortes axiales fusionados de 3 mm cada 3 mm con ese nombre, exportarlos como DICOM y guardar el PNG del MIP fusionado.
+
+El panel comprueba contra el archivo cargado que sea el de la fase correcta, leyendo el marco de referencia y la descripción de la serie, y explica el error habitual: el SPECT de una fase solo comparte coordenadas con el CT de su propia fase. Al completar las dos fases revela la impresión diagnóstica del informe y deja preguntas para discutir. Sin caso elegido, el visor funciona igual que siempre.
+
+Los casos viven en `paratiroides-casos.js`, el mismo archivo que usa el simulador; la clínica está desidentificada y los marcos se guardan como hash. Los DICOM no forman parte del repositorio.
 
 ## Generar cortes DICOM
 

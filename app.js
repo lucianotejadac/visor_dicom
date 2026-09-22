@@ -38,6 +38,7 @@ function setVolume(v){
  yaw=.35;pitch=.12;zoom=1;update3DControls();uploadVolume();
  if(typeof resetSlicePlanner==='function')resetSlicePlanner();
  sync();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'volume'}}));
 }
 function sync(){for(const id of ['width','level','threshold','opacity'])$(id+'Out').textContent=$(id).value;names.forEach((n,i)=>{$(n+'Slice').value=position[2-i];});schedule();}
 function clearSpect(){
@@ -52,6 +53,7 @@ function clearSpect(){
  for(const id of ['offsetX','offsetY','offsetZ']){$(id).value=0;$(id).disabled=true;}
  names.forEach(n=>document.querySelector(`.${n} h3 span`).textContent='MPR');
  update3DControls();uploadVolume();schedule();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'spect'}}));
 }
 function setSpect(v){
  const compatibility=VolumeCore.fusionCompatibility(volume,v);if(!compatibility.allowed)throw Error(compatibility.reason);
@@ -61,8 +63,10 @@ function setSpect(v){
  $('spect3dOption').disabled=false;$('fusion3dOption').disabled=false;$('volumeSource').value='spect';zoom=1;
  $('fusionEnabled').checked=true;$('manualFusion').checked=false;
  for(const id of ['offsetX','offsetY','offsetZ'])$(id).value=0;
- $('spectMetadata').textContent=`${v.description} · DICOM ${v.modality} · ${v.nx} × ${v.ny} × ${v.nz} · ${v.spacing.map(s=>s.toFixed(2)).join(' × ')} mm · ${VolumeCore.intensityUnit(v)}`;
+ $('spectMetadata').textContent=`${v.description} · DICOM ${v.modality} · ${v.nx} × ${v.ny} × ${v.nz} · ${v.spacing.map(s=>s.toFixed(2)).join(' × ')} mm · ${VolumeCore.intensityUnit(v)}`
+  +(v.tiltDegrees?` · Orientación inclinada ${v.tiltDegrees.toFixed(2)}° respecto del eje axial, tratada como axial: desplazamiento máximo de ${(Math.sin(v.tiltDegrees*Math.PI/180)*Math.max(v.nx*v.spacing[0],v.ny*v.spacing[1],v.nz*v.spacing[2])/2).toFixed(1)} mm en los bordes del volumen.`:'');
  update3DControls();uploadVolume();updateFusion();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'spect'}}));
 }
 function active3DVolume(){return $('volumeSource').value==='spect'?spect:volume;}
 function parameters3D(){
@@ -118,6 +122,7 @@ function updateFusion(){
  update3DControls();
  if(typeof refreshSliceContent==='function')refreshSliceContent();
  schedule();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'fusion'}}));
 }
 function selectSpectSeries(){
  const slices=spectGroups.get($('spectSeries').value)||[];
@@ -274,6 +279,7 @@ function setMode(id){
  for(const other of ['mip','vrt','slices'])$(other).classList.toggle('active',other===id);
  if(typeof syncSliceMode==='function')syncSliceMode();
  update3DControls();schedule();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'mode'}}));
 }
 for(const id of ['mip','vrt','slices'])$(id).addEventListener('click',()=>setMode(id));
 $('reset').addEventListener('click',()=>{resetMprZoom();yaw=.35;pitch=.12;zoom=1;if(volume)position=[Math.floor(volume.nx/2),Math.floor(volume.ny/2),Math.floor(volume.nz/2)];sync();});

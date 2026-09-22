@@ -269,7 +269,7 @@ function exportPng(){
  try{
   canvas.toBlob(blob=>{
    if(!blob)return status('No se pudo generar el PNG.',true);
-   try{downloadBlob(blob,name);status(`Imagen guardada como ${name}. Es una captura en color del panel, no un DICOM.`);}
+   try{downloadBlob(blob,name);status(`Imagen guardada como ${name}. Es una captura en color del panel, no un DICOM.`);document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'png',name,mode,source:$('volumeSource').value}}));}
    catch(e){status(`No se pudo guardar el PNG: ${e.message}`,true);}
   },'image/png');
  }catch(e){status(`No se pudo guardar el PNG: ${e.message}`,true);}
@@ -327,6 +327,7 @@ async function exportSlices(){
    :`${p.count} corte(s) ${p.name}es exportados como Secondary Capture RGB ${place}. `+
     `Serie derivada, sin HU ni unidades funcionales.${header.generatedStudy?' El volumen no traía StudyInstanceUID: la serie se creó en un estudio nuevo.':''}`,
    saveCancelled);
+  if(!saveCancelled)document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'exported',count:p.count,plane:p.plane,distance:p.distance,thickness:p.thickness,fusion:sliceContentIsFusion(),name:seriesName(),description:header.seriesDescription}}));
  }catch(e){
   // Leave the dialog open with the failure: the export is long and the sidebar may be out of view.
   $('saveStatus').textContent=`No se pudo guardar: ${e.message}`;
@@ -355,6 +356,7 @@ $('sliceGenerate').addEventListener('click',()=>{
  $('sliceIndex').value=Math.floor((slicePlan.count-1)/2);
  status(`${slicePlan.count} corte(s) ${slicePlan.name}es planificados. Rueda o barra para recorrerlos; exporta cuando estén como quieres.`);
  schedule();
+ document.dispatchEvent(new CustomEvent('volumina',{detail:{kind:'slices'}}));
 });
 $('sliceExport').addEventListener('click',exportSlices);
 $('exportPng').addEventListener('click',exportPng);

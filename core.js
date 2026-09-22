@@ -24,7 +24,13 @@ function parseFrames(bytes){
  const geometry=modality==='NM'&&detectors?.[0]?.dataSet?detectors[0].dataSet:ds;
  const position=nums(geometry,'x00200032'),orientation=nums(geometry,'x00200037'),spacing=nums(ds,'x00280030');
  if(position.length!==3||orientation.length!==6||spacing.length!==2||![...position,...orientation,...spacing].every(Number.isFinite)||spacing.some(v=>v<=0))throw Error('Geometría DICOM ausente o inválida');
- if(orientation.some((v,i)=>Math.abs(v-[1,0,0,0,1,0][i])>0.0001))throw Error('Serie oblicua o con orientación no admitida; se requiere axial LPS estándar');
+ // Las reconstrucciones NM de los Symbia traen la inclinación real del gantry, del orden de
+ // medio grado. Hasta 1° se acepta como axial y se declara en `tiltDegrees`, para que la
+ // interfaz lo avise: con vóxeles de 2-4 mm el desplazamiento en los extremos queda por
+ // debajo de un vóxel. El CT sigue exigiendo orientación exacta.
+ const deviation=Math.max(...orientation.map((v,i)=>Math.abs(v-[1,0,0,0,1,0][i]))),tiltDegrees=Math.asin(Math.min(1,deviation))*180/Math.PI;
+ if(deviation>(modality==='NM'?Math.sin(Math.PI/180):0.0001))throw Error('Serie oblicua o con orientación no admitida; se requiere axial LPS estándar');
+ const tilted=deviation>0.0001;
  const uid=str('x0020000e');if(!uid)throw Error('SeriesInstanceUID ausente');
  const slope=Number(str('x00281053')||1),intercept=Number(str('x00281052')||0);
  if(!Number.isFinite(slope)||slope===0||!Number.isFinite(intercept))throw Error('Rescale inválido');
@@ -45,7 +51,7 @@ function parseFrames(bytes){
  if(element.encapsulatedPixelData||element.length<count*bits/8||element.dataOffset+count*bits/8>bytes.length)throw Error('Píxeles incompletos');
  const view=new DataView(bytes.buffer,bytes.byteOffset+element.dataOffset,count*bits/8),data=new Float32Array(count),mask=2**stored-1,sign=2**(stored-1),le=syntax!=='1.2.840.10008.1.2.2';
  for(let i=0;i<count;i++){let raw=(bits===8?view.getUint8(i):view.getUint16(i*2,le))&mask;if(signed&&raw>=sign)raw-=2**stored;data[i]=raw*slope+intercept;}
- const common={uid,nx,ny,orientation,spacing,frame:str('x00200052'),patientId:str('x00100020'),issuer:str('x00100021'),modality,sopClass,syntax,
+ const common={uid,nx,ny,orientation,spacing,tiltDegrees:tilted?tiltDegrees:0,frame:str('x00200052'),patientId:str('x00100020'),issuer:str('x00100021'),modality,sopClass,syntax,
   instance:str('x00200013'),seriesNumber:str('x00200011'),thickness:str('x00180050'),burned:str('x00280301'),
   studyUid:str('x0020000d'),studyId:str('x00200010'),studyDate:str('x00080020'),studyTime:str('x00080030'),accession:str('x00080050'),patientName:str('x00100010'),referring:str('x00080090'),units:str('x00541001')||str('x00281054'),description:str('x0008103e')||'Serie sin descripción',window:Number(str('x00281051').split('\\')[0]),level:str('x00281050')?Number(str('x00281050').split('\\')[0]):40};
  return sliceIndices.map((index,i)=>({...common,position:[position[0],position[1],position[2]+(index-1)*dz],data:data.subarray(i*nx*ny,(i+1)*nx*ny)}));
@@ -59,7 +65,7 @@ function build(slices){
  if(dz<0.0001||gaps.some(g=>Math.abs(g-dz)>Math.max(.01,dz*.01)))throw Error('Cortes duplicados, ausentes o espaciado irregular');
  const n=f.nx*f.ny*a.length;if(n>128*1024*1024)throw Error('Volumen demasiado grande para este prototipo (máximo 128 millones de vóxeles)');
  const data=new Float32Array(n);a.forEach((s,i)=>data.set(s.data,i*f.nx*f.ny));
- return {nx:f.nx,ny:f.ny,nz:a.length,spacing:[f.spacing[1],f.spacing[0],dz],origin:f.position,data,description:f.description,modality:f.modality,sopClass:f.sopClass,units:f.units,frame:f.frame,patientId:f.patientId,issuer:f.issuer,
+ return {nx:f.nx,ny:f.ny,nz:a.length,spacing:[f.spacing[1],f.spacing[0],dz],origin:f.position,data,description:f.description,modality:f.modality,sopClass:f.sopClass,units:f.units,frame:f.frame,patientId:f.patientId,issuer:f.issuer,tiltDegrees:f.tiltDegrees||0,
   studyUid:f.studyUid,studyId:f.studyId,studyDate:f.studyDate,studyTime:f.studyTime,accession:f.accession,patientName:f.patientName,referring:f.referring,window:f.window||400,level:Number.isFinite(f.level)?f.level:40};
 }
 function demo(){
