@@ -4,7 +4,7 @@
 // Source view → image axes. Coronal and sagittal rows run from superior down, as in drawSlices.
 const SOURCE_AXES={axial:{horizontal:0,vertical:1,flip:false},coronal:{horizontal:0,vertical:2,flip:true},sagittal:{horizontal:1,vertical:2,flip:true}};
 const PLANE_LABELS={axial:'Axial',coronal:'Coronal',sagittal:'Sagital'};
-let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null,saveCancelled=false;
+let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null,saveCancelled=false,sliceNameEdited=false;
 const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo','sliceFov'];
 const sliceNumber=id=>Number($(id).value);
 function sliceAxis(){const frame=Reformat.PLANES[$('slicePlane').value];return frame?frame.axis:2;}
@@ -34,6 +34,8 @@ function planOptions(){
   fov:sliceNumber('sliceFov'),matrix:Number($('sliceMatrix').value),center:sliceCentre};
 }
 function coveringField(){return Reformat.covering(volume,$('slicePlane').value);}
+// The proposed name follows the output plane until the user types their own.
+function resetSliceName(){if(!sliceNameEdited)$('sliceName').value=automaticName();}
 function resetSliceField(){
  if(!volume)return;
  sliceCentre=null;
@@ -66,8 +68,8 @@ function updateSlicePlan(){
  return slicePlan;
 }
 function resetSlicePlanner(){
- sliceContentChosen=false;
- refreshPlaneOptions();refreshSliceContent();resetSliceRange();resetSliceField();
+ sliceContentChosen=false;sliceNameEdited=false;
+ refreshPlaneOptions();refreshSliceContent();resetSliceRange();resetSliceField();resetSliceName();
  $('sliceIndex').max=0;$('sliceIndex').value=0;sliceImage=null;
  sliceZoom=1;sliceZoomMode=false;
  updateSlicePlan();
@@ -206,7 +208,7 @@ function reformatPointerUp(event,canvas){
 }
 function seriesDescription(p){
  const content=sliceContentIsFusion()?`Fusion ${volume.modality}+${spect.modality}`:volume.modality;
- return `${content} ${PLANE_LABELS[p.plane]} ${p.thickness} mm/${p.distance} mm DERIVADO`.slice(0,64);
+ return `${seriesName()} ${content} ${PLANE_LABELS[p.plane]} ${p.thickness}/${p.distance} mm DERIVADO`.slice(0,64);
 }
 function derivationText(p){
  return `Reformateo multiplanar ${p.name} generado por Volumina desde "${volume.description}". `+
@@ -216,8 +218,13 @@ function derivationText(p){
   `Imagen en color derivada: no conserva HU ni unidades funcionales y no sirve para medir. Prototipo sin validación clínica.`;
 }
 function sliceFileName(p,k){return `VOL_${p.plane.toUpperCase()}_${String(k+1).padStart(4,'0')}.dcm`;}
+// Filesystem and DICOM LO safe; accents are fine because the dataset declares UTF-8.
+function safeName(text){return String(text||'').replace(/[^\wÁÉÍÓÚÜÑáéíóúüñ .-]/g,'').trim().replace(/\s+/g,'_').replace(/^[._-]+/,'').slice(0,40);}
+function automaticName(){return `VOLUMINA_${(Reformat.PLANES[$('slicePlane').value]||{name:''}).name.toUpperCase()}`;}
+function seriesName(){return safeName($('sliceName').value)||automaticName();}
+function stamp(now){return `${DicomWrite.dicomDate(now)}_${DicomWrite.dicomTime(now)}`;}
 // The series gets its own folder, named without any patient data.
-function exportFolderName(p,now){return `VOLUMINA_${p.plane.toUpperCase()}_${DicomWrite.dicomDate(now)}_${DicomWrite.dicomTime(now)}`;}
+function exportFolderName(p,now){return `${seriesName()}_${stamp(now)}`;}
 async function createExportFolder(directory,name){
  // Never write into a folder that already exists: two exports must not end up mixed.
  for(let attempt=1;attempt<100;attempt++){
@@ -241,6 +248,31 @@ function updateSaveDialog(done,total){
  $('saveStatus').textContent=`Guardando corte ${done} de ${total}…`;
 }
 function closeSaveDialog(){$('saveDialog').hidden=true;}
+function downloadBlob(blob,name){
+ if(typeof URL==='undefined'||!URL.createObjectURL)throw Error('Este navegador no permite descargar archivos');
+ const link=document.createElement('a');
+ link.href=URL.createObjectURL(blob);link.download=name;link.click();
+ setTimeout(()=>URL.revokeObjectURL(link.href),10000);
+}
+// PNG of whatever the fourth pane shows: the 3D render, or the reformatted slice.
+function pngName(now){
+ if(mode!=='slices')return `${seriesName()}_${mode.toUpperCase()}_${stamp(now)}.png`;
+ return `${seriesName()}_CORTE_${String(Number($('sliceIndex').value)+1).padStart(4,'0')}_${stamp(now)}.png`;
+}
+function exportPng(){
+ const slices=mode==='slices',canvas=slices?$('sliceCanvas'):$('volume');
+ if(slices&&!slicePlan)return status('Genera los cortes antes de guardar el PNG.',true);
+ if(!slices&&!textureReady)return status('No hay imagen 3D que guardar: carga un volumen y espera a que se dibuje.',true);
+ if(typeof canvas.toBlob!=='function')return status('Este navegador no permite guardar el lienzo como PNG.',true);
+ const name=pngName(new Date());
+ try{
+  canvas.toBlob(blob=>{
+   if(!blob)return status('No se pudo generar el PNG.',true);
+   try{downloadBlob(blob,name);status(`Imagen guardada como ${name}. Es una captura en color del panel, no un DICOM.`);}
+   catch(e){status(`No se pudo guardar el PNG: ${e.message}`,true);}
+  },'image/png');
+ }catch(e){status(`No se pudo guardar el PNG: ${e.message}`,true);}
+}
 function sliceSeriesHeader(p){
  const studyUid=volume.studyUid||DicomWrite.uid();
  return {studyUid,seriesUid:DicomWrite.uid(),frameUid:volume.frame||'',
@@ -285,9 +317,7 @@ async function exportSlices(){
    if(typeof Blob!=='function')throw Error('Este navegador no permite descargar el ZIP');
    $('saveStatus').textContent='Comprimiendo el ZIP…';
    await new Promise(r=>setTimeout(r,0));
-   const blob=new Blob([DicomWrite.zip(entries)],{type:'application/zip'}),link=document.createElement('a');
-   link.href=URL.createObjectURL(blob);link.download=`${folderName}.zip`;link.click();
-   setTimeout(()=>URL.revokeObjectURL(link.href),10000);
+   downloadBlob(new Blob([DicomWrite.zip(entries)],{type:'application/zip'}),`${folderName}.zip`);
   }
   closeSaveDialog();
   const place=folder?`en la carpeta ${folder.name}`:`en ${folderName}.zip, dentro de la carpeta ${folderName}`;
@@ -305,8 +335,9 @@ async function exportSlices(){
  }
  finally{sliceExporting=false;$('sliceExport').disabled=!slicePlan;}
 }
-$('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();resetSliceField();updateSlicePlan();});
-$('slicePlane').addEventListener('change',()=>{resetSliceRange();resetSliceField();updateSlicePlan();});
+$('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();resetSliceField();resetSliceName();updateSlicePlan();});
+$('slicePlane').addEventListener('change',()=>{resetSliceRange();resetSliceField();resetSliceName();updateSlicePlan();});
+$('sliceName').addEventListener('input',()=>{sliceNameEdited=true;});
 $('sliceFull').addEventListener('click',()=>{resetSliceRange();updateSlicePlan();});
 $('sliceFullField').addEventListener('click',()=>{resetSliceField();updateSlicePlan();});
 $('sliceCentre').addEventListener('click',()=>{
@@ -325,6 +356,7 @@ $('sliceGenerate').addEventListener('click',()=>{
  schedule();
 });
 $('sliceExport').addEventListener('click',exportSlices);
+$('exportPng').addEventListener('click',exportPng);
 $('saveCancel').addEventListener('click',()=>{
  if(!sliceExporting){closeSaveDialog();return;}
  saveCancelled=true;$('saveCancel').disabled=true;$('saveStatus').textContent='Cancelando; se detiene tras el corte en curso…';

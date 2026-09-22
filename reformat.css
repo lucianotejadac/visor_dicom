@@ -3,6 +3,9 @@
 #sliceFull{font-size:11px;width:100%;margin-top:8px}
 #slicePlan{padding:8px;border-left:2px solid #7ad7ff;background:#16222e;margin-top:14px}
 .offsets select{margin-top:5px;padding:6px 4px;font-size:12px}
+#sliceName{display:block;width:100%;margin-top:6px;padding:7px 8px;background:#101923;border:1px solid #425166;border-radius:4px;color:#e4edf7;font:inherit;font-size:12px}
+.panehead-actions{display:flex;align-items:center;gap:10px}
+#exportPng{padding:4px 9px;font-size:10px;letter-spacing:1px;border-radius:5px}
 #sliceFullField,#sliceCentre{font-size:11px;padding:8px 6px}
 #sliceGenerate,#sliceExport{font-size:12px}
 #sliceGenerate{border-color:#7ad7ff}

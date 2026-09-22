@@ -277,8 +277,8 @@ async function loadFiles(files,target='base'){
 function selectSeries(){try{const v=VolumeCore.build(groups.get($('series').value));setVolume(v);status(`Serie cargada · ${v.nz} cortes ordenados por posición física.`);}catch(e){status(`No se pudo reconstruir: ${e.message}. La vista conserva el volumen anterior.`,true);}}
 $('series').addEventListener('change',selectSeries);
 $('spectSeries').addEventListener('change',selectSpectSeries);
-for(const id of ['spectFiles','spectFolder'])$(id).addEventListener('change',e=>{loadFiles([...e.target.files],'spect');e.target.value='';});
-for(const id of ['files','folder'])$(id).addEventListener('change',e=>{loadFiles([...e.target.files]);e.target.value='';});
+$('spectFiles').addEventListener('change',e=>{loadFiles([...e.target.files],'spect');e.target.value='';});
+$('files').addEventListener('change',e=>{loadFiles([...e.target.files]);e.target.value='';});
 document.addEventListener('dragover',e=>{e.preventDefault();document.body.classList.add('dragging');});document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dragging');});document.addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('dragging');loadFiles([...e.dataTransfer.files]);});
 new ResizeObserver(schedule).observe(document.querySelector('.grid'));
 $('volume').addEventListener('webglcontextlost',e=>{e.preventDefault();textureReady=false;$('volumeError').textContent='Se perdió el contexto gráfico. Recarga la página para recuperar 3D.';});

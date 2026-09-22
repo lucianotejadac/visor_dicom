@@ -11,6 +11,8 @@ class Element{
  hasPointerCapture(id){return this.captured===id;}
  releasePointerCapture(){this.captured=null;}
  getBoundingClientRect(){return {width:360,height:280,left:0,top:0};}
+ click(){this.clicked=true;this.fire('click');}
+ toBlob(callback,type){callback({size:128,type});}
  getContext(type){return type==='webgl2'?null:this.ctx;}
  replaceChildren(...options){this.options=options;this.value=options[0]?.value||'';}
  add(option){(this.options??=[]).push(option);if(this.options.length===1)this.value=option.value;}
@@ -22,8 +24,10 @@ for(const match of html.matchAll(/<[^>]+\bid="([^"]+)"[^>]*>/g)){
  if(match[0].startsWith('<select'))e.value=html.slice(match.index,html.indexOf('</select>',match.index)).match(/<option[^>]*\bvalue="([^"]*)"/)?.[1]||'';
  e.checked=/\bchecked\b/.test(match[0]);elements.set(e.id,e);
 }
-const badges=new Map(),document={getElementById:id=>{assert.ok(elements.has(id),'Missing DOM id '+id);return elements.get(id);},querySelector:selector=>{if(!badges.has(selector))badges.set(selector,new Element());return badges.get(selector);},createElement:()=>new Element(),addEventListener(){},body:new Element()};
-const context=vm.createContext({console,document,devicePixelRatio:1,Option:class{constructor(text,value){this.text=text;this.value=value;}},ResizeObserver:class{observe(){}},requestAnimationFrame:fn=>queue.push(fn),setTimeout,Float32Array,Uint8Array,Uint8ClampedArray,DataView,TextEncoder,crypto});
+let lastCreated=null;
+const badges=new Map(),document={getElementById:id=>{assert.ok(elements.has(id),'Missing DOM id '+id);return elements.get(id);},querySelector:selector=>{if(!badges.has(selector))badges.set(selector,new Element());return badges.get(selector);},createElement:()=>lastCreated=new Element(),addEventListener(){},body:new Element()};
+const context=vm.createContext({console,document,devicePixelRatio:1,Option:class{constructor(text,value){this.text=text;this.value=value;}},ResizeObserver:class{observe(){}},requestAnimationFrame:fn=>queue.push(fn),setTimeout,Float32Array,Uint8Array,Uint8ClampedArray,DataView,TextEncoder,crypto,
+ URL:{createObjectURL:()=>'blob:volumina',revokeObjectURL(){}}});
 const dicomParser=require('./vendor/dicomParser.min.js');
 for(const file of ['core.js','reformat.js','dicomwrite.js','app.js','reformat-ui.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8'),context);
 const run=code=>vm.runInContext(code,context),flush=()=>{while(queue.length)queue.shift()();},el=id=>elements.get(id);
@@ -228,6 +232,36 @@ test('An empty or zero field of view is refused instead of silently ignored',()=
  assert.match(el('slicePlan').textContent,/numéricos/);
  el('sliceFullField').fire('click');
  assert.equal(run('slicePlan.field'),180);
+});
+test('The series name follows the output plane until it is typed over',()=>{
+ assert.equal(el('sliceName').value,'VOLUMINA_AXIAL');
+ el('slicePlane').value='sagittal';el('slicePlane').fire('change');
+ assert.equal(el('sliceName').value,'VOLUMINA_SAGITAL');
+ el('sliceName').value='Rodilla derecha';el('sliceName').fire('input');
+ el('slicePlane').value='axial';el('slicePlane').fire('change');
+ assert.equal(el('sliceName').value,'Rodilla derecha','a typed name is never overwritten');
+ assert.equal(run('seriesName()'),'Rodilla_derecha');
+ assert.match(run('exportFolderName(slicePlan,new Date())'),/^Rodilla_derecha_\d{8}_\d{6}$/);
+ assert.match(run('seriesDescription(slicePlan)'),/^Rodilla_derecha /);
+});
+test('An unusable name falls back to the automatic one',()=>{
+ el('sliceName').value='///';el('sliceName').fire('input');
+ assert.equal(run('seriesName()'),'VOLUMINA_AXIAL');
+ el('sliceName').value='CT/SPECT: cadera*izq';el('sliceName').fire('input');
+ assert.equal(run('seriesName()'),'CTSPECT_caderaizq');
+ el('sliceName').value='VOLUMINA_AXIAL';el('sliceName').fire('input');
+});
+test('PNG export saves what the fourth pane shows and refuses when there is nothing',()=>{
+ el('vrt').fire('click');flush();
+ el('exportPng').fire('click');
+ assert.match(el('status').textContent,/No hay imagen 3D/);
+ el('sliceGenerate').fire('click');flush();
+ el('sliceIndex').value='2';el('sliceIndex').fire('input');flush();
+ el('exportPng').fire('click');
+ assert.ok(lastCreated.clicked,'the download link was activated');
+ assert.match(lastCreated.download,/^VOLUMINA_AXIAL_CORTE_0003_\d{8}_\d{6}\.png$/,lastCreated.download);
+ assert.match(el('status').textContent,/Imagen guardada como VOLUMINA_AXIAL_CORTE_0003/);
+ assert.match(el('status').textContent,/no un DICOM/);
 });
 test('Slice canvas zoom works like MPR: margin triggers zoom',()=>{
  el('sliceGenerate').fire('click');flush();

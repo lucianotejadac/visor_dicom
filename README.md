@@ -1,6 +1,6 @@
 # Volumina · visor DICOM local
 
-Abre `index.html` en Chrome o Edge y pulsa **Cargar demo** o **Abrir DICOM**. No requiere instalación ni servidor. Los archivos se procesan en memoria y no se envían a ningún servicio. La biblioteca está incluida localmente.
+Abre `index.html` en Chrome o Edge y pulsa **Cargar demo**, **Abrir CT** —uno o varios archivos de la misma serie— o **Abrir SPECT** —un único archivo—. No requiere instalación ni servidor. Los archivos se procesan en memoria y no se envían a ningún servicio. La biblioteca está incluida localmente.
 
 ## Funciones
 
@@ -22,8 +22,8 @@ Abre `index.html` en Chrome o Edge y pulsa **Cargar demo** o **Abrir DICOM**. No
 
 ## Fusión SPECT / CT
 
-1. Carga el CT con **Abrir DICOM** y selecciona su serie.
-2. Pulsa **Abrir SPECT / xSPECT** para seleccionar archivos o **Abrir carpeta funcional** para seleccionar una carpeta completa, incluidos archivos sin extensión. Se admiten series NM reconstruidas y exportaciones PT clásicas (xSPECT/PET). Si cargas varias series, elige la correspondiente en **Serie funcional**.
+1. Carga el CT con **Abrir CT**, seleccionando uno o varios archivos, y elige su serie.
+2. Pulsa **Abrir SPECT** y elige **un único archivo**: NM reconstruido, normalmente multiframe, o PT clásico. Un estudio funcional repartido en un archivo por corte no puede cargarse desde aquí, porque el selector admite un solo archivo.
 3. La superposición aparece en axial, coronal y sagital cuando comparten un `FrameOfReferenceUID` no vacío y no hay identificadores de paciente contradictorios. Revisa siempre la correspondencia anatómica: compartir coordenadas no comprueba que el paciente no se haya movido.
 4. Ajusta opacidad, umbral inferior y saturación superior. Los porcentajes se refieren al máximo positivo del volumen funcional reescalado. Se conserva `Units (0054,1001)` (con `Rescale Type` como alternativa si falta): BQML se muestra como Bq/ml. No se calcula SUV ni se valida la calibración del equipo. Fuera del campo funcional se ve solo el CT.
 
@@ -35,7 +35,9 @@ Si los marcos de referencia difieren o faltan, la fusión queda desactivada. Pue
 
 En **Reconstrucción 3D → Volumen 3D** puedes elegir la base, el SPECT/xSPECT cargado o **CT + SPECT fusionados**. Al cargar el volumen funcional junto a un CT, se selecciona inicialmente el SPECT solo; elige la opción de fusión para ver ambos. **Cargar demo** permite probarlo sin archivos.
 
-También puedes abrir SPECT/xSPECT sin CT usando **Abrir SPECT / xSPECT** o **Abrir carpeta funcional**. Cuando no hay CT como base, se carga como volumen base y el 3D utiliza automáticamente la escala funcional.
+También puedes abrir SPECT/xSPECT sin CT con **Abrir SPECT**. Cuando no hay CT como base, se carga como volumen base y el 3D utiliza automáticamente la escala funcional.
+
+**PNG:** el botón **PNG** de la cabecera del cuarto panel guarda lo que ese panel esté mostrando —el MIP, el VRT o el corte generado— como imagen en color. Es una captura de pantalla del panel, no un DICOM, y toma el nombre de la serie indicado en **Generar cortes**.
 
 - **MIP:** muestra la intensidad máxima a lo largo de cada rayo, con paleta de color o grises.
 - **VRT:** acumula color y opacidad a lo largo del rayo para representar el volumen de actividad.
@@ -77,7 +79,7 @@ La carpeta suministrada contiene una serie de 298 archivos sin extensión, codif
 - Orientación axial LPS estándar, posición por corte y marco de referencia presentes.
 - RescaleSlope = 10, RescaleIntercept = 0, Units = BQML. Rango reescalado observado: 0–414890 Bq/ml.
 
-Se verificaron la reconstrucción y la ruta de importación funcional con los 298 archivos originales, sin modificarlos ni copiarlos al proyecto. Las pruebas de interfaz utilizan un DOM/canvas simulado y una base CT sintética para comprobar la carga; **no se ha comprobado la alineación con el CT real ni la visualización en navegador de este estudio**.
+Esa comprobación se hizo cuando existía **Abrir carpeta funcional**; con el selector actual de un solo archivo, esa serie de 298 archivos ya no puede cargarse desde la interfaz. Se verificaron la reconstrucción y la ruta de importación funcional con los 298 archivos originales, sin modificarlos ni copiarlos al proyecto. Las pruebas de interfaz utilizan un DOM/canvas simulado y una base CT sintética para comprobar la carga; **no se ha comprobado la alineación con el CT real ni la visualización en navegador de este estudio**.
 
 El lector acepta PT clásico axial sin compresión, aplica el rescale de cada corte y rechaza series que mezclan unidades. Enhanced PET sigue sin soporte. Las comprobaciones de paciente y marco de referencia se mantienen también para PT.
 
@@ -95,7 +97,8 @@ A partir de la serie cargada, **GENERAR CORTES** reconstruye planos nuevos y los
 4. **FoV** y **matriz**, como en syngo. El campo de visión se indica en milímetros y es cuadrado, centrado y medido de borde a borde; la matriz es el número de píxeles por lado: 64 × 64, 128 × 128, 256 × 256, 512 × 512 o 1024 × 1024. **El tamaño de píxel no se elige: es el resultado**, FoV dividido por matriz, y aparece en el resumen junto al peso de la exportación. Al cargar un volumen o cambiar de plano, el FoV se ajusta al cuadrado que cubre ese plano y la matriz a la mayor que no deja el píxel por debajo del vóxel. **FoV completo** vuelve a ese ajuste y **Centrar aquí** lleva el campo a la referencia de los MPR.
 5. **Rango:** el volumen completo por omisión. Se acota arrastrando las dos líneas sobre la ventana de trabajo o escribiendo los milímetros en *Desde* y *Hasta*. **Rango completo** lo restablece.
 6. **Generar** muestra la pila en el cuarto panel, junto a MIP y VRT. Es un visor de imágenes, no 3D: rueda o barra para recorrer los cortes, con número y posición en milímetros. El zoom funciona como en los MPR: rueda sobre el margen negro, o clic y arrastre hacia arriba desde el margen; dentro de la imagen la rueda sigue cambiando de corte. **Restablecer vistas** lo devuelve al 100 %.
-7. **Exportar DICOM** escribe la serie. Eliges dónde guardarla y **siempre se crea una carpeta nueva** para ella, nunca archivos sueltos: `VOLUMINA_<PLANO>_<fecha>_<hora>`, sin datos del paciente en el nombre. Si ya existiera una carpeta con ese nombre, se numera (`_2`, `_3`) en vez de mezclar dos exportaciones. Mientras escribe aparece una ventana **Guardando serie DICOM** con el corte en curso y una barra de progreso; se cierra sola al terminar. **Cancelar** detiene la exportación tras el corte en curso y dice cuántos quedaron escritos. Si algo falla, la ventana se queda abierta con el motivo.
+7. **Nombre de la serie**: se propone `VOLUMINA_<PLANO>` y lo puedes modificar o ampliar. Se usa en el nombre de la carpeta, en `SeriesDescription` y en el PNG. Solo se conservan letras, dígitos, espacios —que pasan a guion bajo—, punto, guion y guion bajo, hasta 40 caracteres; si queda vacío se vuelve al nombre automático.
+8. **Exportar DICOM** escribe la serie. Eliges dónde guardarla y **siempre se crea una carpeta nueva** para ella, nunca archivos sueltos: `<nombre>_<fecha>_<hora>`, sin datos del paciente salvo los que escribas tú. Si ya existiera una carpeta con ese nombre, se numera (`_2`, `_3`) en vez de mezclar dos exportaciones. Mientras escribe aparece una ventana **Guardando serie DICOM** con el corte en curso y una barra de progreso; se cierra sola al terminar. **Cancelar** detiene la exportación tras el corte en curso y dice cuántos quedaron escritos. Si algo falla, la ventana se queda abierta con el motivo.
 
 El grosor se combina **en las intensidades originales**, antes de aplicar ventana, color y fusión: el promedio se calcula sobre HU y sobre Bq/ml, no sobre los píxeles ya coloreados. La combinación predeterminada es el promedio, con MIP y MinIP del slab como alternativas. Se toma una muestra por vóxel a lo largo del grosor, hasta 64. Las muestras que caen fuera del volumen se descartan; no se replica el borde.
 
@@ -180,7 +183,7 @@ HTML/CSS/JavaScript, canvas 2D y WebGL2. Parser: [dicom-parser 1.8.21](https://g
 
 `node tests.cjs`: 58 pruebas con archivos DICOM sintéticos y volúmenes de referencia. Incluyen lectura, rescale, orden físico, SPECT multiframe, interpolación, identificación y rechazo de geometrías inválidas, PT clásico, BQML, transformación entre coordenadas físicas y texturas 3D, geometría del reformateo por plano, FoV y matriz de salida, combinación del grosor, escritura Secondary Capture comprobada con el lector y el contenedor ZIP.
 
-`node tests-ui.cjs`: 59 pruebas de integración con un DOM/canvas simulado. Verifican los buffers MPR, controles de fusión, referencias, etiquetas PT/Bq/ml, selección de fuente 3D, independencia de escalas, bloqueo por registro, ampliación de los cuatro paneles, zoom por margen, coordenadas de clic después del zoom, planificación de cortes, arrastre del rango, FoV y matriz de salida, la pila generada en el cuarto panel, su zoom por margen y la identidad de paciente y estudio de la serie exportada. Añaden 5 pruebas de exportación que recorren el guardado completo con un sustituto del selector de carpetas: la carpeta propia de cada serie, el nombre de cada archivo, el recuento de la ventana de guardado, la cancelación y el fallo de escritura. No sustituyen la comprobación visual en navegador.
+`node tests-ui.cjs`: 62 pruebas de integración con un DOM/canvas simulado. Verifican los buffers MPR, controles de fusión, referencias, etiquetas PT/Bq/ml, selección de fuente 3D, independencia de escalas, bloqueo por registro, ampliación de los cuatro paneles, zoom por margen, coordenadas de clic después del zoom, planificación de cortes, arrastre del rango, FoV y matriz de salida, el nombre editable de la serie, la exportación PNG del cuarto panel, la pila generada, su zoom por margen y la identidad de paciente y estudio de la serie exportada. Añaden 5 pruebas de exportación que recorren el guardado completo con un sustituto del selector de carpetas: la carpeta propia de cada serie, el nombre de cada archivo, el recuento de la ventana de guardado, la cancelación y el fallo de escritura. No sustituyen la comprobación visual en navegador.
 
 `node tests-anon.cjs`: 29 pruebas del recorte y la desidentificación con DICOM sintéticos. Comprueban que los píxeles salen byte a byte iguales y las HU intactas, la identidad de recambio, los Tipo 2 vaciados, las fechas aplanadas, los UID compartidos y los SOP únicos, la eliminación de tags privados, secuencias con UID ajenos, overlays y grupos de ensayo clínico, el orden ascendente de tags, la auditoría del archivo escrito, el camino implícito, el rechazo del big endian, la reconstrucción del volumen anonimizado por el visor y la detección de tramos de espaciado uniforme.
 
