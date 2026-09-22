@@ -113,7 +113,12 @@ function updateFusion(){
  if(typeof refreshSliceContent==='function')refreshSliceContent();
  schedule();
 }
-function selectSpectSeries(){try{setSpect(VolumeCore.build(spectGroups.get($('spectSeries').value)));status('SPECT cargado. Consulta el estado de alineación en el panel de fusión.');}catch(e){status(`No se pudo fusionar: ${e.message}. Se conserva la vista anterior.`,true);}}
+function selectSpectSeries(){
+ const slices=spectGroups.get($('spectSeries').value)||[];
+ if(slices.length===1)return status('Ese archivo trae un solo corte. Abrir SPECT admite un único archivo, así que debe ser una reconstrucción multiframe con todos los cortes dentro.',true);
+ try{setSpect(VolumeCore.build(slices));status('SPECT cargado. Consulta el estado de alineación en el panel de fusión.');}
+ catch(e){status(`No se pudo fusionar: ${e.message}. Se conserva la vista anterior.`,true);}
+}
 for(const id of ['fusionEnabled','manualFusion'])$(id).addEventListener('change',updateFusion);
 for(const id of ['fusionOpacity','offsetX','offsetY','offsetZ'])$(id).addEventListener('input',updateFusion);
 $('spectLow').addEventListener('input',()=>{if(Number($('spectLow').value)>=Number($('spectHigh').value))$('spectHigh').value=Number($('spectLow').value)+1;updateFusion();});
@@ -257,7 +262,11 @@ for(const id of ['mip','vrt','slices'])$(id).addEventListener('click',()=>setMod
 $('reset').addEventListener('click',()=>{resetMprZoom();yaw=.35;pitch=.12;zoom=1;if(volume)position=[Math.floor(volume.nx/2),Math.floor(volume.ny/2),Math.floor(volume.nz/2)];sync();});
 $('demo').addEventListener('click',()=>{if(loading)return;groups.clear();$('series').replaceChildren(new Option('CT sintético','demo'));$('series').disabled=true;setVolume(VolumeCore.demo());setSpect(VolumeCore.demoSpect());$('spectSeries').replaceChildren(new Option('SPECT sintético','demo'));status('Demo CT + SPECT cargada · Fusión MPR y SPECT 3D. Puedes alternar la fuente 3D.');});
 async function loadFiles(files,target='base'){
- if(loading||!files.length)return;
+ if(loading)return;
+ // Silence here reads as a broken viewer: say that nothing was selected.
+ if(!files.length)return status(target==='base'
+  ?'No seleccionaste ningún archivo. Abre el CT y marca todos los cortes de la serie: Ctrl+A selecciona la carpeta entera.'
+  :'No seleccionaste ningún archivo funcional.',true);
  if(target==='spect'&&(!volume||volume.modality!=='CT'))target='functionalBase';
  loading=true;$('demo').disabled=true;$('series').disabled=true;$('spectSeries').disabled=true;$('removeSpect').disabled=true;const next=new Map(),rejected=[];let total=0;
  try{
@@ -274,7 +283,13 @@ async function loadFiles(files,target='base'){
  }else{groups=next;$('series').replaceChildren();for(const [uid,s] of groups)$('series').add(new Option(`${s[0].description} · ${s.length} cortes`,uid));selectSeries();}
  }catch(e){status(e.message,true);}finally{loading=false;$('demo').disabled=false;$('series').disabled=groups.size===0;$('spectSeries').disabled=spectGroups.size===0;$('removeSpect').disabled=!spect;}
 }
-function selectSeries(){try{const v=VolumeCore.build(groups.get($('series').value));setVolume(v);status(`Serie cargada · ${v.nz} cortes ordenados por posición física.`);}catch(e){status(`No se pudo reconstruir: ${e.message}. La vista conserva el volumen anterior.`,true);}}
+function selectSeries(){
+ const slices=groups.get($('series').value)||[];
+ // A single CT file is the usual mistake: one slice is not a volume.
+ if(slices.length===1)return status('Seleccionaste un solo corte y un volumen necesita la serie completa. Vuelve a Abrir CT y marca todos los archivos con Ctrl+A.',true);
+ try{const v=VolumeCore.build(slices);setVolume(v);status(`Serie cargada · ${v.nz} cortes ordenados por posición física.`);}
+ catch(e){status(`No se pudo reconstruir: ${e.message}. La vista conserva el volumen anterior.`,true);}
+}
 $('series').addEventListener('change',selectSeries);
 $('spectSeries').addEventListener('change',selectSpectSeries);
 $('spectFiles').addEventListener('change',e=>{loadFiles([...e.target.files],'spect');e.target.value='';});

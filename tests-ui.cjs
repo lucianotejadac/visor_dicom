@@ -233,6 +233,21 @@ test('An empty or zero field of view is refused instead of silently ignored',()=
  el('sliceFullField').fire('click');
  assert.equal(run('slicePlan.field'),180);
 });
+test('Opening with nothing selected says so instead of staying silent',()=>{
+ run('loadFiles([])');
+ assert.match(el('status').textContent,/No seleccionaste ningún archivo/);
+ assert.match(el('status').textContent,/Ctrl\+A/);
+ run("loadFiles([],'spect')");
+ assert.match(el('status').textContent,/ningún archivo funcional/);
+});
+test('A single CT file explains that a volume needs the whole series',()=>{
+ run("groups=new Map([['una',[{uid:'una'}]]]);$('series').replaceChildren(new Option('una serie','una'));selectSeries();");
+ assert.match(el('status').textContent,/un solo corte/);
+ assert.match(el('status').textContent,/Ctrl\+A/);
+ run("spectGroups=new Map([['una',[{uid:'una'}]]]);$('spectSeries').replaceChildren(new Option('una serie','una'));selectSpectSeries();");
+ assert.match(el('status').textContent,/multiframe/);
+ el('demo').fire('click');
+});
 test('The series name follows the output plane until it is typed over',()=>{
  assert.equal(el('sliceName').value,'VOLUMINA_AXIAL');
  el('slicePlane').value='sagittal';el('slicePlane').fire('change');
