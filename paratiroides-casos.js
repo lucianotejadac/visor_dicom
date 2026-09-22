@@ -33,8 +33,10 @@ const PARATIROIDES_CASOS={
    'Lo que buscas está caudal al polo inferior del lóbulo tiroideo izquierdo, y debe persistir en la fase tardía cuando la tiroides ya lavó.'
   ],
   fases:{
-   precoz:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'09c8b716'},ct:{cortes:247,dzMm:1,pixelMm:0.547,espesorMm:1.5,kernel:'B50s',marco:'09c8b716'}},
-   tardio:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'21f4ff52'},ct:{cortes:235,dzMm:1,pixelMm:0.629,espesorMm:1.5,kernel:'B50s',marco:'21f4ff52'}}
+   precoz:{carpetaNm:'archivo «precoz», suelto en la carpeta del caso',carpetaCt:'ct precoz anom',nm:{frames:240,vistas:60,pasoGrados:3,marco:'09c8b716'},ct:{cortes:247,dzMm:1,pixelMm:0.547,espesorMm:1.5,kernel:'B50s',marco:'09c8b716'},
+    guia:'La tiroides capta de forma bastante simétrica. Busca una extensión de la captación hacia caudal del polo inferior del lóbulo izquierdo: en axial, baja corte a corte por debajo de la tiroides.'},
+   tardio:{carpetaNm:'archivo «tardio», suelto en la carpeta del caso',carpetaCt:'ct tardio anom',nm:{frames:240,vistas:60,pasoGrados:3,marco:'21f4ff52'},ct:{cortes:235,dzMm:1,pixelMm:0.629,espesorMm:1.5,kernel:'B50s',marco:'21f4ff52'},
+    guia:'La tiroides ya lavó, así que el foco inferior izquierdo debe quedar solo y evidente. Sobre el CT corresponde a un nódulo de unos 9 mm bajo el polo inferior. Compara con la fase precoz: eso es el «lavado diferencial» del sestamibi.'}
   }
  },
  2:{
@@ -51,9 +53,12 @@ const PARATIROIDES_CASOS={
    '32 vistas por cabezal cada 5.625° en vez de 60: proyecciones más ruidosas que en los demás casos.',
    'Un estudio negativo también hay que saber informarlo: el objetivo es demostrar que no hay foco, no encontrar uno a la fuerza.'
   ],
+  registro:'Este CT es de atenuación: baja dosis, cortes de 3 mm y kernel blando, así que se ve borroso. Para el registro usa el preajuste «Contorno externo» de la ventana TC y guíate por la piel del cuello, no por el hueso.',
   fases:{
-   precoz:{nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'dc2a4f21'},ct:{cortes:85,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'dc2a4f21'}},
-   tardio:{nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'aade3374'},ct:{cortes:82,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'aade3374'}}
+   precoz:{carpetaNm:'carpeta «nm precoz»',carpetaCt:'ct precoz ac',nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'dc2a4f21'},ct:{cortes:85,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'dc2a4f21'},
+    guia:'Tiroides con captación simétrica y sin focos definidos. Fíjate en las glándulas submandibulares: la derecha capta menos que la izquierda. Con 32 vistas la imagen es más ruidosa; sube el umbral inferior antes de decidir que algo es un foco.'},
+   tardio:{carpetaNm:'carpeta «nm tardio»',carpetaCt:'ct tardio ac',nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'aade3374'},ct:{cortes:82,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'aade3374'},
+    guia:'Lavado completo, sin focos que persistan. Este es el momento de aprender a no inventar: con el umbral demasiado bajo cualquier ruido parece un foco. El CT de 3 mm muestra nódulos hipodensos tiroideos bilaterales que no captan.'}
   }
  },
  3:{
@@ -71,8 +76,10 @@ const PARATIROIDES_CASOS={
    'Hay además un nódulo tiroideo derecho levemente captante que compite por la atención: no es la lesión principal.'
   ],
   fases:{
-   precoz:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'c1fa16de'},ct:{cortes:251,dzMm:1,pixelMm:0.633,espesorMm:1.5,kernel:'B50s',marco:'c1fa16de'}},
-   tardio:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'50733b9c'},ct:{cortes:251,dzMm:1,pixelMm:0.635,espesorMm:1.5,kernel:'B50s',marco:'50733b9c'}}
+   precoz:{carpetaNm:'carpeta «precoz»',carpetaCt:'ct precoz',nm:{frames:240,vistas:60,pasoGrados:3,marco:'c1fa16de'},ct:{cortes:251,dzMm:1,pixelMm:0.633,espesorMm:1.5,kernel:'B50s',marco:'c1fa16de'},
+    guia:'No te quedes en la tiroides. Baja en axial hasta el mediastino superior y mira detrás de la tráquea, a la altura de T3: hay un nódulo alargado con captación muy intensa. En el MIP se ve de inmediato como el foco más caliente, por debajo del cuello. En el lóbulo tiroideo derecho hay además un nódulo levemente captante.'},
+   tardio:{carpetaNm:'carpeta «tardio»',carpetaCt:'ct tardio',nm:{frames:240,vistas:60,pasoGrados:3,marco:'50733b9c'},ct:{cortes:251,dzMm:1,pixelMm:0.635,espesorMm:1.5,kernel:'B50s',marco:'50733b9c'},
+    guia:'El foco retrotraqueal persiste con la tiroides ya lavada. En el CT mide unos 20 × 9 mm en axial y 28 mm de cabeza a pies: úsalo para recorrerlo en coronal y sagital. Un adenoma en este sitio cambia la cirugía, por eso importa localizarlo bien.'}
   }
  },
  4:{
@@ -88,9 +95,12 @@ const PARATIROIDES_CASOS={
    'El CT del tardío tiene mucha mejor resolución y más cortes que el del precoz: 272 cortes de 1.5 mm contra 97 cortes de 3 mm con kernel blando. La fusión tardía será mucho más nítida; compárala con la precoz y explica por qué.',
    'El nódulo es posterior al polo inferior del lóbulo tiroideo izquierdo, metido en el surco traqueoesofágico: en axial hay que mirar detrás de la tiroides, no lateral a ella.'
   ],
+  registro:'El CT precoz es el de atenuación, de 3 mm y kernel blando: se ve borroso. Para registrarlo usa el preajuste «Contorno externo» y guíate por la piel. En la fase tardía el CT es el diagnóstico de 1.5 mm y el registro se hace con el hueso.',
   fases:{
-   precoz:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'949c0270'},ct:{cortes:97,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'949c0270'}},
-   tardio:{nm:{frames:240,vistas:60,pasoGrados:3,marco:'7ee94b6a'},ct:{cortes:272,dzMm:1,pixelMm:0.652,espesorMm:1.5,kernel:'B50s',marco:'7ee94b6a'}}
+   precoz:{carpetaNm:'carpeta «precoz»',carpetaCt:'ct ac precoz',nm:{frames:240,vistas:60,pasoGrados:3,marco:'949c0270'},ct:{cortes:97,dzMm:3,pixelMm:0.977,espesorMm:3,kernel:'B08s',marco:'949c0270'},
+    guia:'Nódulo hipercaptante posterior al polo inferior del lóbulo izquierdo, metido en el surco traqueoesofágico: en axial, detrás de la tiroides y no lateral a ella. Con este CT de 3 mm la correlación anatómica es gruesa; anótalo, porque en la fase tardía vas a ver la diferencia.'},
+   tardio:{carpetaNm:'carpeta «tardio»',carpetaCt:'ct 3d tardio',nm:{frames:240,vistas:60,pasoGrados:3,marco:'7ee94b6a'},ct:{cortes:272,dzMm:1,pixelMm:0.652,espesorMm:1.5,kernel:'B50s',marco:'7ee94b6a'},
+    guia:'El mismo foco persiste tras el lavado tiroideo, y ahora el CT de 1.5 mm deja ver el nódulo con nitidez. Genera los cortes fusionados de las dos fases y compáralos: la emisión es equivalente, lo que cambia es la calidad del CT.'}
   }
  },
  5:{
@@ -109,8 +119,10 @@ const PARATIROIDES_CASOS={
    'El foco es dudoso por definición: capta en el precoz y no retiene en el tardío. Lo interesante es discutir por qué el informe igual lo describe.'
   ],
   fases:{
-   precoz:{nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'22de79f6'},ct:{cortes:205,dzMm:1,pixelMm:0.887,espesorMm:1.5,kernel:'B50s',marco:'22de79f6'}},
-   tardio:{nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'e79a92e4',reconstruidaPorEquipo:true},ct:{cortes:205,dzMm:1,pixelMm:0.777,espesorMm:1.5,kernel:'B50s',marco:'e79a92e4'}}
+   precoz:{carpetaNm:'carpeta «precoz»',carpetaCt:'ct precoz',nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'22de79f6'},ct:{cortes:205,dzMm:1,pixelMm:0.887,espesorMm:1.5,kernel:'B50s',marco:'22de79f6'},
+    guia:'El lóbulo izquierdo está aumentado por un nódulo que ocupa sus dos tercios inferiores y capta igual que el resto. Lo que buscas es más discreto: un foco alargado de leve captación retrotiroideo izquierdo, paraesofágico, que en el CT corresponde a un nódulo de unos 1,0 × 1,3 × 2 cm. Sube la opacidad y baja el umbral con cuidado.'},
+   tardio:{carpetaNm:'carpeta «reconstruccion siemens tardio»',carpetaCt:'ct tardio',nm:{frames:128,vistas:32,pasoGrados:5.625,marco:'e79a92e4',reconstruidaPorEquipo:true},ct:{cortes:205,dzMm:1,pixelMm:0.777,espesorMm:1.5,kernel:'B50s',marco:'e79a92e4'},
+    guia:'Esta es la reconstrucción del equipo, no la tuya. La tiroides depuró con leve actividad residual y el nódulo paraesofágico no retiene: por eso el informe lo llama dudoso. Compárala con tu OSEM del precoz y separa qué diferencias son del paciente y cuáles del procesamiento.'}
   }
  }
 };
@@ -120,5 +132,6 @@ function paratiroidesNombre(caso,fase){return `Caso ${caso} ${fase}`;}
 function paratiroidesReconoceNombre(descripcion,caso,fase){
  // El visor escribe el nombre con guiones bajos en vez de espacios; se normaliza antes.
  const texto=String(descripcion||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[_-]+/g,' ');
- return new RegExp(`\\bcaso\\s*${caso}\\b.*\\b${fase}\\b`,'i').test(texto);
+ // Tolera "Caso1precoz" y "caso 1 - precoz": lo que importa es el numero y la fase.
+ return new RegExp(`caso\\s*${caso}(?!\\d).*${fase}`,'i').test(texto);
 }
