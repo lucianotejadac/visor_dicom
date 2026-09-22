@@ -254,6 +254,68 @@ test('Slice canvas pointer drag from margin zooms',()=>{
  run('sliceZoom=1');flush();
 });
 console.log(`${passed} application integration tests passed (DOM/canvas harness, no browser).`);
+// Export drives the File System Access API, so it runs against a recording stand-in.
+(async()=>{
+ const saved={folders:[],files:[]},existing=new Set();
+ const folderHandle=name=>({getFileHandle:async file=>({createWritable:async()=>({write:async bytes=>saved.files.push({folder:name,file,length:bytes.length}),close:async()=>{}})})});
+ const directory={getDirectoryHandle:async(name,options)=>{
+  if(options&&options.create){existing.add(name);saved.folders.push(name);return folderHandle(name);}
+  if(existing.has(name))return folderHandle(name);
+  throw Object.assign(new Error('NotFound'),{name:'NotFoundError'});
+ }};
+ context.showDirectoryPicker=async()=>directory;
+ context.exportDirectory=directory;
+ let count=0;
+ const check=async(name,fn)=>{await fn();flush();count++;console.log('PASS '+name);};
+ el('sliceMatrix').value='64';el('sliceMatrix').fire('change');
+ el('sliceDistance').value='100';el('sliceDistance').fire('input');
+ const planned=run('slicePlan.count');
+ await check('Export writes the whole series inside a folder of its own',async()=>{
+  await run('exportSlices()');
+  assert.equal(saved.folders.length,1);
+  assert.match(saved.folders[0],/^VOLUMINA_AXIAL_\d{8}_\d{6}$/,saved.folders[0]);
+  assert.equal(saved.files.length,planned);
+  assert.deepEqual(saved.files.map(f=>f.file),Array.from({length:planned},(_,k)=>`VOL_AXIAL_${String(k+1).padStart(4,'0')}.dcm`));
+  assert.ok(saved.files.every(f=>f.folder===saved.folders[0]&&f.length>1000));
+  assert.match(el('status').textContent,new RegExp(`en la carpeta ${saved.folders[0]}`));
+ });
+ await check('The saving dialog opens, counts every slice and closes when done',async()=>{
+  assert.equal(el('saveDialog').hidden,true);
+  assert.equal(Number(el('saveProgress').value),planned);
+  assert.equal(Number(el('saveProgress').max),planned);
+  assert.match(el('saveStatus').textContent,new RegExp(`corte ${planned} de ${planned}`));
+  assert.match(el('saveTarget').textContent,/^Carpeta VOLUMINA_AXIAL_/);
+ });
+ await check('A second export never reuses the first folder',async()=>{
+  const first=await run('createExportFolder(exportDirectory,"CARPETA")');
+  const second=await run('createExportFolder(exportDirectory,"CARPETA")');
+  assert.equal(first.name,'CARPETA');
+  assert.equal(second.name,'CARPETA_2');
+ });
+ await check('Cancelling stops the export and says how much was written',async()=>{
+  saved.files.length=0;saved.folders.length=0;
+  el('sliceDistance').value='4';el('sliceDistance').fire('input');flush();
+  const total=run('slicePlan.count');
+  const running=run('exportSlices()');
+  await new Promise(r=>setTimeout(r,0));
+  el('saveCancel').fire('click');
+  await running;
+  assert.ok(saved.files.length<total,`${saved.files.length} de ${total}`);
+  assert.equal(el('saveDialog').hidden,true);
+  assert.match(el('status').textContent,/Exportación cancelada tras \d+ de \d+/);
+  assert.equal(saved.folders.length,1,'the cancelled run still used one folder');
+ });
+ await check('A write failure keeps the dialog open with the reason',async()=>{
+  context.showDirectoryPicker=async()=>({getDirectoryHandle:async()=>{throw Error('sin permiso de escritura');}});
+  await run('exportSlices()');
+  assert.equal(el('saveDialog').hidden,false);
+  assert.match(el('saveStatus').textContent,/No se pudo guardar: sin permiso de escritura/);
+  assert.equal(el('saveCancel').textContent,'Cerrar');
+  el('saveCancel').fire('click');
+  assert.equal(el('saveDialog').hidden,true);
+ });
+ console.log(`${count} export tests passed (File System Access stand-in, no real files).`);
+})();
 // Optional local-data import check. Original files stay in place; no snapshots or patient logs.
 if(process.argv[2]){
  (async()=>{

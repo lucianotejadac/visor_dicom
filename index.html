@@ -59,4 +59,12 @@
 <article class="pane sagittal"><div class="panehead"><h3>SAGITAL <span>MPR</span></h3><output id="sagittalOut">—</output></div><div class="view"><canvas id="sagittal"></canvas><span class="zoom-hint" id="sagittalZoom">100 % · Margen: zoom</span><span class="top">S</span><span class="left">A</span><span class="right">P</span><span class="bottom">I</span></div><input aria-label="Corte sagital" id="sagittalSlice" type="range" min="0" max="0" value="0"></article>
 <article class="pane volume"><div class="panehead"><h3><b id="volumeTitle">VOLUMEN BASE</b> <span id="modeLabel">VRT</span></h3><output id="volumeKind">3D · Una serie</output></div><div class="view"><canvas id="volume"></canvas><canvas id="sliceCanvas" hidden></canvas><span class="zoom-hint" id="sliceZoomHint" hidden>100 % · Margen: zoom</span><div id="volumeError" class="empty"></div></div><input aria-label="Corte reformateado" id="sliceIndex" type="range" min="0" max="0" value="0" hidden><div class="legend" id="volumeLegend">Girar · Arrastrar <span>Zoom · Rueda</span></div></article>
 </div><footer><span id="dimensions">Sin volumen</span><span>HTML + JavaScript · Datos en memoria</span></footer>
-</section></main><script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="reformat.js"></script><script src="dicomwrite.js"></script><script src="app.js"></script><script src="reformat-ui.js"></script></body></html>
+</section></main>
+<div class="modal" id="saveDialog" hidden><div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="saveTitle">
+<h3 id="saveTitle">GUARDANDO SERIE DICOM</h3>
+<p id="saveStatus" role="status" aria-live="polite">Preparando…</p>
+<progress id="saveProgress" max="1" value="0"></progress>
+<p id="saveTarget" class="fusion-info"></p>
+<button id="saveCancel" type="button">Cancelar</button>
+</div></div>
+<script src="vendor/dicomParser.min.js"></script><script src="core.js"></script><script src="reformat.js"></script><script src="dicomwrite.js"></script><script src="app.js"></script><script src="reformat-ui.js"></script></body></html>

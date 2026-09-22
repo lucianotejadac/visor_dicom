@@ -95,7 +95,7 @@ A partir de la serie cargada, **GENERAR CORTES** reconstruye planos nuevos y los
 4. **FoV** y **matriz**, como en syngo. El campo de visión se indica en milímetros y es cuadrado, centrado y medido de borde a borde; la matriz es el número de píxeles por lado: 64 × 64, 128 × 128, 256 × 256, 512 × 512 o 1024 × 1024. **El tamaño de píxel no se elige: es el resultado**, FoV dividido por matriz, y aparece en el resumen junto al peso de la exportación. Al cargar un volumen o cambiar de plano, el FoV se ajusta al cuadrado que cubre ese plano y la matriz a la mayor que no deja el píxel por debajo del vóxel. **FoV completo** vuelve a ese ajuste y **Centrar aquí** lleva el campo a la referencia de los MPR.
 5. **Rango:** el volumen completo por omisión. Se acota arrastrando las dos líneas sobre la ventana de trabajo o escribiendo los milímetros en *Desde* y *Hasta*. **Rango completo** lo restablece.
 6. **Generar** muestra la pila en el cuarto panel, junto a MIP y VRT. Es un visor de imágenes, no 3D: rueda o barra para recorrer los cortes, con número y posición en milímetros. El zoom funciona como en los MPR: rueda sobre el margen negro, o clic y arrastre hacia arriba desde el margen; dentro de la imagen la rueda sigue cambiando de corte. **Restablecer vistas** lo devuelve al 100 %.
-7. **Exportar DICOM** escribe la serie.
+7. **Exportar DICOM** escribe la serie. Eliges dónde guardarla y **siempre se crea una carpeta nueva** para ella, nunca archivos sueltos: `VOLUMINA_<PLANO>_<fecha>_<hora>`, sin datos del paciente en el nombre. Si ya existiera una carpeta con ese nombre, se numera (`_2`, `_3`) en vez de mezclar dos exportaciones. Mientras escribe aparece una ventana **Guardando serie DICOM** con el corte en curso y una barra de progreso; se cierra sola al terminar. **Cancelar** detiene la exportación tras el corte en curso y dice cuántos quedaron escritos. Si algo falla, la ventana se queda abierta con el motivo.
 
 El grosor se combina **en las intensidades originales**, antes de aplicar ventana, color y fusión: el promedio se calcula sobre HU y sobre Bq/ml, no sobre los píxeles ya coloreados. La combinación predeterminada es el promedio, con MIP y MinIP del slab como alternativas. Se toma una muestra por vóxel a lo largo del grosor, hasta 64. Las muestras que caen fuera del volumen se descartan; no se replica el borde.
 
@@ -105,7 +105,7 @@ Los cortes se calculan en coordenadas físicas LPS por interpolación trilineal,
 
 Secondary Capture RGB (`1.2.840.10008.5.1.4.1.1.7`), Explicit VR Little Endian, 8 bits por canal, sin compresión, un archivo por corte. Cada corte lleva `ImagePositionPatient`, `ImageOrientationPatient`, `PixelSpacing`, `SliceThickness`, `SpacingBetweenSlices` y `SliceLocation`, junto al paciente, el estudio y el `FrameOfReferenceUID` de la serie de origen; la serie es nueva, con `SeriesInstanceUID` propio, `ImageType` `DERIVED\SECONDARY\REFORMATTED` y `DerivationDescription` con los parámetros usados. Los UID generados usan la raíz `2.25` derivada de UUID. Si el volumen de origen no trae `StudyInstanceUID`, se crea un estudio nuevo y se avisa.
 
-En Chrome y Edge se elige una carpeta y los archivos se escriben uno a uno. En otros navegadores se descarga un ZIP sin compresión, con un límite de 384 MB.
+En Chrome y Edge se elige dónde guardar y los archivos se escriben uno a uno dentro de la carpeta que se crea para la serie. En otros navegadores se descarga un ZIP sin compresión que contiene esa misma carpeta, con un límite de 384 MB.
 
 **Son imágenes derivadas en color.** No conservan HU ni unidades funcionales, no llevan rescale y no sirven para medir ni para calcular actividad. Este mismo visor no vuelve a abrirlas como volumen: exige MONOCHROME2 y las rechaza. Se abren en Weasis, RadiAnt, Horos o un PACS como una serie de imágenes. Las series coronales y sagitales llevan su orientación real (`1\0\0\0\0\-1` y `0\1\0\0\0\-1`), que no es la axial estándar que acepta el lector.
 
@@ -119,6 +119,59 @@ No incluye JPEG/JPEG-LS/JPEG2000/RLE, multiframe fuera del subconjunto SPECT des
 
 La selección completa se rechaza si contiene archivos incompatibles, para evitar reconstruir series parciales. Selecciona solamente imágenes compatibles (sin DICOMDIR, PDF, informes o localizadores). Las series con duplicados o geometría inconsistente se rechazan. Límite de selección: 512 MB de píxeles decodificados; la memoria real requerida es mayor. El límite 3D depende de la GPU; MPR puede seguir disponible si falla la carga 3D.
 
+## Recortar y anonimizar · `recorte.html`
+
+Página aparte, en el mismo repositorio: abre `recorte.html`, carga la carpeta del estudio,
+elige un rango de cortes en Z y escribe una copia desidentificada de esa serie. Los píxeles
+se copian byte a byte, así que la salida conserva las HU exactas y el visor la vuelve a abrir
+como volumen.
+
+Los dos localizadores (coronal y sagital) se arman con una proyección por corte mientras se
+lee la carpeta, y sobre ellos se arrastran las dos líneas del rango. La rueda mueve la última
+línea tocada de a un corte y el panel axial muestra siempre el corte de esa línea. «Tramo
+contiguo» salta al tramo más largo con espaciado uniforme, que es el único que
+[el visor acepta](#alcance-de-esta-version); «Máx. 512» lo acorta a 512 cortes desde el extremo
+superior, el tope exacto de 128 M vóxeles.
+
+### Qué hace la desidentificación
+
+Perfil de lista negra sobre el archivo original, no una reescritura desde cero: se conserva
+todo lo que no identifica.
+
+- **Se eliminan**: los atributos identificatorios del paciente, del personal, de la institución,
+  de la visita y de la orden (PS3.15 anexo E); todos los tags privados; los grupos de ensayo
+  clínico, firmas digitales, curvas y overlays; y cualquier UID ajeno al estándar, esté donde
+  esté. Una secuencia que arrastre identificación, fechas o UID ajenos se elimina entera.
+- **Se vacían** (Tipo 2, quedan presentes): `AccessionNumber`, `ReferringPhysicianName`,
+  `PatientBirthDate` y `StudyID`.
+- **Se reemplazan**: identidad fija `ANONIMO^RECORTE` / `VOLUMINA-ANON-001` / `Volumina-anon`,
+  `PatientIdentityRemoved` = `YES` con `DeidentificationMethod`, descripciones de estudio y
+  serie, `InstanceNumber` renumerado desde 1, todas las fechas y horas aplanadas a
+  `20260101` / `120000.000000`, y `StudyInstanceUID`, `SeriesInstanceUID`,
+  `FrameOfReferenceUID` y `SOPInstanceUID` regenerados con la raíz `2.25`.
+- **Se conservan a propósito**: los píxeles, el rescale y la geometría; fabricante, modelo,
+  versión, protocolo y parámetros de adquisición; y el sexo del paciente.
+
+Cada archivo escrito se vuelve a leer y auditar antes de pasar al siguiente: si aparece un tag
+privado, un identificador de la lista, un UID ajeno o los píxeles cambian de longitud, la
+exportación se detiene. El `FrameOfReferenceUID` nuevo queda anotado en el panel y en
+`recorte.json`, que es lo que necesita una serie funcional simulada para que el visor la
+considere alineada.
+
+**Lo que no hace**: no borra el texto grabado dentro de los píxeles. Si el estudio declara
+`BurnedInAnnotation = YES` aparece un aviso, pero nadie revisa las imágenes por ti. Tampoco
+recorta en el plano, ni quita la cara, ni desplaza fechas conservando intervalos, ni certifica
+el resultado: revisa la salida antes de compartirla.
+
+### Formato de salida del recorte
+
+La misma SOP Class y la misma transfer syntax del original (Implicit o Explicit VR Little
+Endian; el big endian se rechaza porque los píxeles no se pueden copiar sin recodificar). Un
+archivo por corte, `CT_0001.dcm` en adelante, en el orden original de la serie, más
+`recorte.json` con la geometría, los UID nuevos y la lista de tags tocados; el manifiesto no
+lleva nada del estudio de origen, ni siquiera su descripción. En Chrome y Edge se elige una
+carpeta y se escribe archivo por archivo; en el resto se descarga un ZIP sin compresión.
+
 ## Tecnología y licencias
 
 HTML/CSS/JavaScript, canvas 2D y WebGL2. Parser: [dicom-parser 1.8.21](https://github.com/cornerstonejs/dicomParser), licencia MIT incluida en `vendor/LICENSE-dicom-parser`. Texturas 3D: [WebGL2 texImage3D](https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext/texImage3D).
@@ -127,7 +180,11 @@ HTML/CSS/JavaScript, canvas 2D y WebGL2. Parser: [dicom-parser 1.8.21](https://g
 
 `node tests.cjs`: 58 pruebas con archivos DICOM sintéticos y volúmenes de referencia. Incluyen lectura, rescale, orden físico, SPECT multiframe, interpolación, identificación y rechazo de geometrías inválidas, PT clásico, BQML, transformación entre coordenadas físicas y texturas 3D, geometría del reformateo por plano, FoV y matriz de salida, combinación del grosor, escritura Secondary Capture comprobada con el lector y el contenedor ZIP.
 
-`node tests-ui.cjs`: 59 pruebas de integración con un DOM/canvas simulado. Verifican los buffers MPR, controles de fusión, referencias, etiquetas PT/Bq/ml, selección de fuente 3D, independencia de escalas, bloqueo por registro, ampliación de los cuatro paneles, zoom por margen, coordenadas de clic después del zoom, planificación de cortes, arrastre del rango, FoV y matriz de salida, la pila generada en el cuarto panel, su zoom por margen y la identidad de paciente y estudio de la serie exportada. No sustituyen la comprobación visual en navegador.
+`node tests-ui.cjs`: 59 pruebas de integración con un DOM/canvas simulado. Verifican los buffers MPR, controles de fusión, referencias, etiquetas PT/Bq/ml, selección de fuente 3D, independencia de escalas, bloqueo por registro, ampliación de los cuatro paneles, zoom por margen, coordenadas de clic después del zoom, planificación de cortes, arrastre del rango, FoV y matriz de salida, la pila generada en el cuarto panel, su zoom por margen y la identidad de paciente y estudio de la serie exportada. Añaden 5 pruebas de exportación que recorren el guardado completo con un sustituto del selector de carpetas: la carpeta propia de cada serie, el nombre de cada archivo, el recuento de la ventana de guardado, la cancelación y el fallo de escritura. No sustituyen la comprobación visual en navegador.
+
+`node tests-anon.cjs`: 29 pruebas del recorte y la desidentificación con DICOM sintéticos. Comprueban que los píxeles salen byte a byte iguales y las HU intactas, la identidad de recambio, los Tipo 2 vaciados, las fechas aplanadas, los UID compartidos y los SOP únicos, la eliminación de tags privados, secuencias con UID ajenos, overlays y grupos de ensayo clínico, el orden ascendente de tags, la auditoría del archivo escrito, el camino implícito, el rechazo del big endian, la reconstrucción del volumen anonimizado por el visor y la detección de tramos de espaciado uniforme.
+
+`node tests-recorte.cjs`: 13 pruebas de integración de `recorte.html` con el mismo DOM/canvas simulado. Verifican el agrupado por serie, el tramo contiguo por defecto, el aviso al cruzar un salto de cortes, los localizadores, el arrastre y la rueda sobre los límites, el corte axial de referencia, el panel de auditoría, y la exportación real a carpeta y a ZIP con cada archivo auditado y el manifiesto sin datos del estudio original.
 
 `python tests-shader.py`: 19 comprobaciones de renderizado con los shaders exactos de la aplicación en OpenGL fuera de pantalla, utilizando datos sintéticos. Comprueban MIP/VRT individuales y fusionados, paletas, umbral, opacidad, escalas hasta 414890 Bq/ml, resoluciones distintas, desplazamientos y ausencia de color fuera del campo SPECT. Dependencia de pruebas: `python -m pip install --target .test-tools moderngl`. La aplicación HTML no necesita Python ni esta dependencia. Estas pruebas no cubren la integración WebGL del navegador.
 

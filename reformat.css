@@ -7,4 +7,11 @@
 #sliceGenerate,#sliceExport{font-size:12px}
 #sliceGenerate{border-color:#7ad7ff}
 #sliceExport:disabled{opacity:.45;cursor:default}
+.modal{position:fixed;inset:0;z-index:20;background:#040810d0;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal[hidden]{display:none}
+.modal-card{width:min(430px,100%);background:#111b26;border:1px solid #2d3a49;border-radius:10px;padding:22px 24px;box-shadow:0 18px 50px #00000090}
+.modal-card h3{margin:0 0 12px;font-size:11px;letter-spacing:2px;color:#d7e2ee}
+.modal-card p{margin:0 0 12px;font-size:12px;line-height:1.5;color:#a4b6c9;overflow-wrap:anywhere}
+.modal-card progress{display:block;width:100%;height:6px;accent-color:#51d8c0;border:0;background:#1b2734}
+#saveCancel{margin-top:14px;font-size:12px}
 @media(max-width:850px){#slicePlan{width:100%}#sliceFull{width:auto}}

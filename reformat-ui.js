@@ -4,7 +4,7 @@
 // Source view → image axes. Coronal and sagittal rows run from superior down, as in drawSlices.
 const SOURCE_AXES={axial:{horizontal:0,vertical:1,flip:false},coronal:{horizontal:0,vertical:2,flip:true},sagittal:{horizontal:1,vertical:2,flip:true}};
 const PLANE_LABELS={axial:'Axial',coronal:'Coronal',sagittal:'Sagital'};
-let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null;
+let slicePlan=null,sliceImage=null,limitDrag=null,sliceExporting=false,sliceContentChosen=false,sliceZoom=1,sliceZoomMode=false,sliceZoomDrag=null,sliceCentre=null,saveCancelled=false;
 const sliceInputs=['sliceDistance','sliceThickness','sliceFrom','sliceTo','sliceFov'];
 const sliceNumber=id=>Number($(id).value);
 function sliceAxis(){const frame=Reformat.PLANES[$('slicePlane').value];return frame?frame.axis:2;}
@@ -216,6 +216,31 @@ function derivationText(p){
   `Imagen en color derivada: no conserva HU ni unidades funcionales y no sirve para medir. Prototipo sin validación clínica.`;
 }
 function sliceFileName(p,k){return `VOL_${p.plane.toUpperCase()}_${String(k+1).padStart(4,'0')}.dcm`;}
+// The series gets its own folder, named without any patient data.
+function exportFolderName(p,now){return `VOLUMINA_${p.plane.toUpperCase()}_${DicomWrite.dicomDate(now)}_${DicomWrite.dicomTime(now)}`;}
+async function createExportFolder(directory,name){
+ // Never write into a folder that already exists: two exports must not end up mixed.
+ for(let attempt=1;attempt<100;attempt++){
+  const candidate=attempt===1?name:`${name}_${attempt}`;
+  let taken=true;
+  try{await directory.getDirectoryHandle(candidate);}catch(e){taken=false;}
+  if(!taken)return {handle:await directory.getDirectoryHandle(candidate,{create:true}),name:candidate};
+ }
+ throw Error('No se pudo crear una carpeta nueva para la serie');
+}
+function openSaveDialog(total,target){
+ saveCancelled=false;
+ $('saveProgress').max=total;$('saveProgress').value=0;
+ $('saveStatus').textContent=`Preparando ${total} corte(s)…`;
+ $('saveTarget').textContent=target;
+ $('saveCancel').textContent='Cancelar';$('saveCancel').disabled=false;
+ $('saveDialog').hidden=false;
+}
+function updateSaveDialog(done,total){
+ $('saveProgress').value=done;
+ $('saveStatus').textContent=`Guardando corte ${done} de ${total}…`;
+}
+function closeSaveDialog(){$('saveDialog').hidden=true;}
 function sliceSeriesHeader(p){
  const studyUid=volume.studyUid||DicomWrite.uid();
  return {studyUid,seriesUid:DicomWrite.uid(),frameUid:volume.frame||'',
@@ -234,7 +259,7 @@ async function exportSlices(){
  if(sliceExporting)return;
  const p=updateSlicePlan();
  if(!p)return;
- const header=sliceSeriesHeader(p),estimate=p.columns*p.rows*3*p.count;
+ const header=sliceSeriesHeader(p),estimate=p.columns*p.rows*3*p.count,folderName=exportFolderName(p,header.now);
  let directory=null,entries=null;
  if(typeof showDirectoryPicker==='function'){
   try{directory=await showDirectoryPicker({mode:'readwrite',id:'volumina-cortes'});}
@@ -243,22 +268,41 @@ async function exportSlices(){
   status(`Este navegador solo puede descargar un ZIP y la serie ocuparía ${Math.round(estimate/1048576)} MB. Reduce el rango o usa Chrome/Edge para escribir en una carpeta.`,true);return;
  }else entries=[];
  sliceExporting=true;$('sliceExport').disabled=true;
+ openSaveDialog(p.count,directory?`Carpeta ${folderName}`:`Carpeta ${folderName} dentro de ${folderName}.zip`);
+ let folder=null,written=0;
  try{
+  if(directory)folder=await createExportFolder(directory,folderName);
+  if(folder)$('saveTarget').textContent=`Carpeta ${folder.name}`;
   for(let k=0;k<p.count;k++){
+   if(saveCancelled)break;
    const bytes=sliceBytes(p,k,header),name=sliceFileName(p,k);
-   if(directory){const file=await directory.getFileHandle(name,{create:true}),stream=await file.createWritable();await stream.write(bytes);await stream.close();}
-   else entries.push({name,data:bytes});
-   if(k%4===0){status(`Exportando corte ${k+1} de ${p.count}…`);await new Promise(r=>setTimeout(r,0));}
+   if(folder){const file=await folder.handle.getFileHandle(name,{create:true}),stream=await file.createWritable();await stream.write(bytes);await stream.close();}
+   else entries.push({name:`${folderName}/${name}`,data:bytes});
+   written++;updateSaveDialog(written,p.count);
+   if(k%4===0){status(`Exportando corte ${written} de ${p.count}…`);await new Promise(r=>setTimeout(r,0));}
   }
-  if(entries){
+  if(entries&&!saveCancelled){
    if(typeof Blob!=='function')throw Error('Este navegador no permite descargar el ZIP');
+   $('saveStatus').textContent='Comprimiendo el ZIP…';
+   await new Promise(r=>setTimeout(r,0));
    const blob=new Blob([DicomWrite.zip(entries)],{type:'application/zip'}),link=document.createElement('a');
-   link.href=URL.createObjectURL(blob);link.download=`volumina_${p.plane}.zip`;link.click();
+   link.href=URL.createObjectURL(blob);link.download=`${folderName}.zip`;link.click();
    setTimeout(()=>URL.revokeObjectURL(link.href),10000);
   }
-  status(`${p.count} corte(s) ${p.name}es exportados como Secondary Capture RGB${directory?' en la carpeta elegida':' en un ZIP'}. `+
-   `Serie derivada, sin HU ni unidades funcionales.${header.generatedStudy?' El volumen no traía StudyInstanceUID: la serie se creó en un estudio nuevo.':''}`);
- }catch(e){status(`No se pudo exportar: ${e.message}. Los cortes ya escritos permanecen en la carpeta.`,true);}
+  closeSaveDialog();
+  const place=folder?`en la carpeta ${folder.name}`:`en ${folderName}.zip, dentro de la carpeta ${folderName}`;
+  status(saveCancelled
+   ?`Exportación cancelada tras ${written} de ${p.count} corte(s). Los ya escritos quedan ${place}.`
+   :`${p.count} corte(s) ${p.name}es exportados como Secondary Capture RGB ${place}. `+
+    `Serie derivada, sin HU ni unidades funcionales.${header.generatedStudy?' El volumen no traía StudyInstanceUID: la serie se creó en un estudio nuevo.':''}`,
+   saveCancelled);
+ }catch(e){
+  // Leave the dialog open with the failure: the export is long and the sidebar may be out of view.
+  $('saveStatus').textContent=`No se pudo guardar: ${e.message}`;
+  $('saveTarget').textContent=written?`Quedan ${written} corte(s) ya escritos.`:'No se escribió ningún archivo.';
+  $('saveCancel').textContent='Cerrar';$('saveCancel').disabled=false;
+  status(`No se pudo exportar: ${e.message}. Los cortes ya escritos permanecen en su carpeta.`,true);
+ }
  finally{sliceExporting=false;$('sliceExport').disabled=!slicePlan;}
 }
 $('sliceSource').addEventListener('change',()=>{refreshPlaneOptions();resetSliceRange();resetSliceField();updateSlicePlan();});
@@ -281,6 +325,10 @@ $('sliceGenerate').addEventListener('click',()=>{
  schedule();
 });
 $('sliceExport').addEventListener('click',exportSlices);
+$('saveCancel').addEventListener('click',()=>{
+ if(!sliceExporting){closeSaveDialog();return;}
+ saveCancelled=true;$('saveCancel').disabled=true;$('saveStatus').textContent='Cancelando; se detiene tras el corte en curso…';
+});
 $('sliceIndex').addEventListener('input',()=>{sliceImage=null;schedule();});
 const canvas=$('sliceCanvas');
 function sliceHit(e){
