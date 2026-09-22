@@ -95,7 +95,7 @@ Con `?caso=N` en la URL, o eligiendo el caso en el panel **Tutorial paratiroides
 
 El panel comprueba contra el archivo cargado que sea el de la fase correcta, leyendo el marco de referencia y la descripción de la serie, y explica el error habitual: el SPECT de una fase solo comparte coordenadas con el CT de su propia fase. Al completar las dos fases revela la impresión diagnóstica del informe y deja preguntas para discutir. Sin caso elegido, el visor funciona igual que siempre.
 
-Los casos viven en `paratiroides-casos.js`, el mismo archivo que usa el simulador; la clínica está desidentificada y los marcos se guardan como hash. Los DICOM no forman parte del repositorio.
+Los casos viven en `paratiroides-casos.js`, el mismo archivo que usa el simulador; la clínica está desidentificada y los marcos se guardan como hash. Los DICOM no forman parte del repositorio. Las decisiones de diseño de las dos herramientas, incluida la tolerancia de inclinación, están en la [bitácora de decisiones](https://github.com/lucianotejadac/spect-lab-95/blob/main/BITACORA.md) del simulador.
 
 ## Generar cortes DICOM
 
